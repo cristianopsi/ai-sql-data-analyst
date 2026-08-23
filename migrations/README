@@ -1,0 +1,4 @@
+Alembic migration environment for AI SQL Data Analyst.
+
+Migrations use MIGRATION_DATABASE_URL from the ignored local .env file.
+Application and analytics runtime credentials must never run migrations.

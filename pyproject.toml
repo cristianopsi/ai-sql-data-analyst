@@ -104,4 +104,4 @@ known-first-party = ["backend"]
 python_version = "3.12"
 strict = true
 warn_unused_configs = true
-packages = ["backend"]
+packages = ["backend", "scripts"]

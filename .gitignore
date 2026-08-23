@@ -49,7 +49,7 @@ data/generated/
 data/raw/
 data/exports/
 artifacts/
-models/
+/models/
 
 # Streamlit secrets
 frontend/.streamlit/secrets.toml
