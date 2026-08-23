@@ -15,6 +15,9 @@ Implemented and manually validated:
 - managed pool startup and shutdown through the FastAPI lifespan;
 - secure schema intelligence generated from SQLAlchemy metadata;
 - thread-safe schema catalog caching with TTL and ETag revalidation;
+- deterministic semantic layer with governed metrics and dimensions;
+- safe question grounding with restricted-intent blocking;
+- compact grounding context exposed through a controlled API;
 - typed environment configuration with protected secrets;
 - PostgreSQL 18.6 through Docker Compose;
 - Alembic migration infrastructure;
@@ -28,7 +31,6 @@ Implemented and manually validated:
 
 Still planned:
 
-- semantic business layer and question-to-schema grounding;
 - LLM provider abstraction;
 - Text-to-SQL generation, validation, and repair;
 - deterministic analytics and visualization engines;
@@ -69,6 +71,7 @@ limits.
 - `GET /health` provides process liveness and service metadata;
 - `GET /ready` validates both PostgreSQL pools and transaction modes;
 - `GET /api/v1/schema/catalog` returns the safe SQL schema catalog;
+- `POST /api/v1/grounding/context` builds safe question context;
 - `/docs` and `/redoc` expose interactive API documentation;
 - `/openapi.json` provides the machine-readable API contract.
 
@@ -92,6 +95,31 @@ A thread-safe in-memory cache builds the catalog lazily and uses the configured
 requests with HTTP 304, and returns a sanitized HTTP 503 response if catalog
 construction is unavailable.
 
+## Deterministic semantic grounding
+
+Semantic version 1 defines 14 dimensions, nine governed metrics, eight
+relationships, five business rules, and 22 curated vocabulary values. Every
+semantic reference is validated against the safe schema catalog, preventing
+restricted customer columns from entering downstream context.
+
+Question grounding normalizes user input and deterministically selects metrics,
+dimensions, vocabulary values, tables, relationship paths, and applicable
+business rules. Results use the explicit statuses `grounded`, `ambiguous`,
+`unsupported`, and `restricted`.
+
+The grounding service creates compact context containing only the safe objects
+required for the question. Serialized context is limited to 20,000 characters
+and fails closed instead of truncating its contract. Restricted and unsupported
+questions receive no schema context.
+
+`POST /api/v1/grounding/context` returns grounded context with HTTP 200,
+restricted requests with HTTP 403, invalid or unsupported requests with HTTP
+422, and sanitized service failures with HTTP 503. Responses disable client
+caching and expose catalog, semantic, and grounding versions through controlled
+headers.
+
+Grounding itself does not generate SQL, call an LLM, or query the database.
+
 ## Validated database foundation
 
 The `retail` schema contains:
@@ -114,8 +142,8 @@ customers are also blocked.
 
 ## Quality evidence
 
-- 117 automated tests passed;
-- branch-aware backend coverage is 88.72%;
+- 157 automated tests passed;
+- branch-aware backend coverage is 91.03%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;

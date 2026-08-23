@@ -13,6 +13,10 @@ from backend.app.services.catalog_cache import (
     CatalogCacheFactory,
     create_schema_catalog_cache,
 )
+from backend.app.services.grounding_context import (
+    GroundingContextServiceFactory,
+    create_grounding_context_service,
+)
 
 type FastAPILifespan = Callable[
     [FastAPI],
@@ -38,6 +42,9 @@ def create_database_lifespan(
     settings: Settings,
     pool_factory: DatabasePoolFactory,
     catalog_cache_factory: CatalogCacheFactory = (create_schema_catalog_cache),
+    grounding_context_service_factory: GroundingContextServiceFactory = (
+        create_grounding_context_service
+    ),
 ) -> FastAPILifespan:
     """Create a FastAPI lifespan that owns the database pools."""
 
@@ -49,6 +56,12 @@ def create_database_lifespan(
 
         schema_catalog_cache = catalog_cache_factory(settings)
         application.state.schema_catalog_cache = schema_catalog_cache
+
+        grounding_context_service = grounding_context_service_factory(
+            settings,
+            schema_catalog_cache,
+        )
+        application.state.grounding_context_service = grounding_context_service
 
         pools = pool_factory(settings)
         application.state.database_pools = pools
