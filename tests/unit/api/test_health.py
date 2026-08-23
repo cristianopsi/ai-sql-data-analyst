@@ -3,12 +3,31 @@ from collections.abc import Iterator
 import pytest
 from fastapi.testclient import TestClient
 
-from backend.app.main import app
+from backend.app.core.config import Settings
+from backend.app.main import create_app
+
+
+class StubDatabasePools:
+    def open(self) -> None:
+        return None
+
+    def close(self) -> None:
+        return None
+
+
+def create_stub_database_pools(
+    settings: Settings,
+) -> StubDatabasePools:
+    del settings
+
+    return StubDatabasePools()
 
 
 @pytest.fixture
 def client() -> Iterator[TestClient]:
-    with TestClient(app) as test_client:
+    application = create_app(pool_factory=create_stub_database_pools)
+
+    with TestClient(application) as test_client:
         yield test_client
 
 
@@ -55,6 +74,8 @@ def test_openapi_documents_health_endpoint(client: TestClient) -> None:
     assert document["info"]["version"] == "0.1.0"
     assert "/health" in document["paths"]
     assert "get" in document["paths"]["/health"]
+    assert "/ready" in document["paths"]
+    assert "get" in document["paths"]["/ready"]
 
 
 def test_interactive_documentation_is_available(client: TestClient) -> None:

@@ -3,24 +3,40 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app import __version__
 from backend.app.api.health import router as health_router
-from backend.app.core.config import get_settings
+from backend.app.core.config import Settings, get_settings
+from backend.app.core.lifecycle import (
+    DatabasePoolFactory,
+    create_database_lifespan,
+)
+from backend.app.db.pools import create_database_pools
 
 
-def create_app() -> FastAPI:
-    settings = get_settings()
+def create_app(
+    *,
+    settings: Settings | None = None,
+    pool_factory: DatabasePoolFactory = (create_database_pools),
+) -> FastAPI:
+    resolved_settings = settings or get_settings()
 
     application = FastAPI(
-        title=settings.app_name,
+        title=resolved_settings.app_name,
         version=__version__,
-        debug=settings.app_debug,
+        debug=resolved_settings.app_debug,
         docs_url="/docs",
         redoc_url="/redoc",
         openapi_url="/openapi.json",
+        lifespan=create_database_lifespan(
+            resolved_settings,
+            pool_factory,
+        ),
     )
+
+    application.state.settings = resolved_settings
+    application.state.database_ready = False
 
     application.add_middleware(
         CORSMiddleware,
-        allow_origins=list(settings.cors_origins),
+        allow_origins=list(resolved_settings.cors_origins),
         allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],

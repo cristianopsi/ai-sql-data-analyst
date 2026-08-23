@@ -102,3 +102,24 @@ def test_get_settings_is_cached(monkeypatch: pytest.MonkeyPatch) -> None:
     assert first.app_env == "test"
 
     get_settings.cache_clear()
+
+
+def test_database_pool_defaults_are_safe() -> None:
+    settings = Settings(_env_file=None)
+
+    assert settings.database_pool_min_size == 1
+    assert settings.database_pool_max_size == 5
+    assert settings.database_pool_timeout_seconds == 5.0
+    assert settings.database_connect_timeout_seconds == 5
+
+
+def test_database_pool_minimum_cannot_exceed_maximum() -> None:
+    with pytest.raises(
+        ValidationError,
+        match=("DATABASE_POOL_MIN_SIZE cannot exceed DATABASE_POOL_MAX_SIZE"),
+    ):
+        Settings(
+            database_pool_min_size=6,
+            database_pool_max_size=5,
+            _env_file=None,
+        )

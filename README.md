@@ -10,7 +10,9 @@ The project is under active, evidence-based implementation.
 
 Implemented and manually validated:
 
-- FastAPI application factory and `/health` endpoint;
+- FastAPI application factory with `/health` liveness and `/ready` readiness;
+- independent application and analytics PostgreSQL connection pools;
+- managed pool startup and shutdown through the FastAPI lifespan;
 - typed environment configuration with protected secrets;
 - PostgreSQL 18.6 through Docker Compose;
 - Alembic migration infrastructure;
@@ -60,6 +62,18 @@ Future application phases will add SQLGlot AST validation, table allowlists,
 prompt-injection controls, repair revalidation, audit events, and result
 limits.
 
+## Current API surface
+
+- `GET /health` provides process liveness and service metadata;
+- `GET /ready` validates both PostgreSQL pools and transaction modes;
+- `/docs` and `/redoc` expose interactive API documentation;
+- `/openapi.json` provides the machine-readable API contract.
+
+The API binds to localhost in the validated development environment. Database
+pools are created closed, opened during application startup, and closed during
+graceful shutdown. Readiness failures return HTTP 503 without exposing
+connection strings, credentials, or internal exceptions.
+
 ## Validated database foundation
 
 The `retail` schema contains:
@@ -82,8 +96,8 @@ customers are also blocked.
 
 ## Quality evidence
 
-- 83 automated tests passed;
-- branch-aware backend coverage is 85.33%;
+- 97 automated tests passed;
+- branch-aware backend coverage is 87.07%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;

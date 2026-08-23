@@ -41,6 +41,26 @@ class Settings(BaseSettings):
 
     database_url: str | None = None
     analytics_database_url: str | None = None
+    database_pool_min_size: int = Field(
+        default=1,
+        ge=0,
+        le=20,
+    )
+    database_pool_max_size: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+    )
+    database_pool_timeout_seconds: float = Field(
+        default=5.0,
+        gt=0.0,
+        le=60.0,
+    )
+    database_connect_timeout_seconds: int = Field(
+        default=5,
+        ge=1,
+        le=60,
+    )
 
     llm_provider: LLMProviderName = "mock"
     llm_model: str = "deterministic-test"
@@ -88,6 +108,9 @@ class Settings(BaseSettings):
 
         if self.app_env == "production" and self.app_debug:
             raise ValueError("APP_DEBUG cannot be enabled in production")
+
+        if self.database_pool_min_size > self.database_pool_max_size:
+            raise ValueError("DATABASE_POOL_MIN_SIZE cannot exceed DATABASE_POOL_MAX_SIZE")
 
         external_providers = {"openai", "gemini", "groq", "openrouter"}
         api_key = self.llm_api_key.get_secret_value()
