@@ -5,6 +5,9 @@ from backend.app import __version__
 from backend.app.api.catalog import router as catalog_router
 from backend.app.api.grounding import router as grounding_router
 from backend.app.api.health import router as health_router
+from backend.app.api.sql_generation import (
+    router as sql_generation_router,
+)
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.lifecycle import (
     DatabasePoolFactory,
@@ -19,6 +22,22 @@ from backend.app.services.grounding_context import (
     GroundingContextServiceFactory,
     create_grounding_context_service,
 )
+from backend.app.services.llm_provider import (
+    LLMProviderFactory,
+    create_llm_provider,
+)
+from backend.app.services.sql_generation import (
+    SQLGenerationPipelineFactory,
+    create_sql_generation_pipeline,
+)
+from backend.app.services.sql_validator import (
+    SQLValidatorFactory,
+    create_sql_validator,
+)
+from backend.app.services.text_to_sql import (
+    TextToSQLServiceFactory,
+    create_text_to_sql_service,
+)
 
 
 def create_app(
@@ -28,6 +47,12 @@ def create_app(
     catalog_cache_factory: CatalogCacheFactory = (create_schema_catalog_cache),
     grounding_context_service_factory: GroundingContextServiceFactory = (
         create_grounding_context_service
+    ),
+    llm_provider_factory: LLMProviderFactory = (create_llm_provider),
+    text_to_sql_service_factory: TextToSQLServiceFactory = (create_text_to_sql_service),
+    sql_validator_factory: SQLValidatorFactory = (create_sql_validator),
+    sql_generation_pipeline_factory: SQLGenerationPipelineFactory = (
+        create_sql_generation_pipeline
     ),
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
@@ -44,6 +69,10 @@ def create_app(
             pool_factory,
             catalog_cache_factory,
             grounding_context_service_factory,
+            llm_provider_factory,
+            text_to_sql_service_factory,
+            sql_validator_factory,
+            sql_generation_pipeline_factory,
         ),
     )
 
@@ -61,6 +90,7 @@ def create_app(
     application.include_router(health_router)
     application.include_router(catalog_router)
     application.include_router(grounding_router)
+    application.include_router(sql_generation_router)
 
     return application
 

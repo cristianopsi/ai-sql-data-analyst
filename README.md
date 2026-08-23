@@ -18,6 +18,13 @@ Implemented and manually validated:
 - deterministic semantic layer with governed metrics and dimensions;
 - safe question grounding with restricted-intent blocking;
 - compact grounding context exposed through a controlled API;
+- managed LLM provider abstraction with deterministic mock and
+  OpenAI-compatible adapters;
+- controlled Text-to-SQL proposals built only from compact grounded context;
+- SQLGlot AST validation with contextual table, column, and function
+  allowlists;
+- bounded SQL repair with revalidation after every proposal;
+- validated SQL generation API that does not execute generated statements;
 - typed environment configuration with protected secrets;
 - PostgreSQL 18.6 through Docker Compose;
 - Alembic migration infrastructure;
@@ -31,8 +38,7 @@ Implemented and manually validated:
 
 Still planned:
 
-- LLM provider abstraction;
-- Text-to-SQL generation, validation, and repair;
+- read-only execution of validated SQL through the analytics role;
 - deterministic analytics and visualization engines;
 - grounded insight generation;
 - Streamlit, evaluation, observability, and CI/CD.
@@ -45,11 +51,14 @@ tests, and explicit validation.
 > The LLM proposes. The software validates. The database restricts.
 > The code calculates. The AI explains.
 
-## Planned pipeline
+## Validated pipeline
 
-Natural-language question → schema grounding → semantic context → SQL proposal
-→ AST and security validation → read-only PostgreSQL execution → deterministic
-analytics → chart specification → grounded explanation.
+Natural-language question → schema grounding → semantic context → controlled
+SQL proposal → SQLGlot AST and security validation → bounded repair → validated
+read-only SQL.
+
+Future phases will add read-only PostgreSQL execution, deterministic analytics,
+chart specifications, and grounded explanations.
 
 ## Security foundations
 
@@ -62,9 +71,10 @@ Currently validated:
 - statement and lock timeouts;
 - blocked runtime writes and DDL.
 
-Future application phases will add SQLGlot AST validation, table allowlists,
-prompt-injection controls, repair revalidation, audit events, and result
-limits.
+Application-layer controls now enforce SQLGlot AST validation, contextual
+table and column allowlists, function allowlists, bounded repair revalidation,
+and mandatory result limits. Future phases will add execution-time audit events
+and deterministic analytics.
 
 ## Current API surface
 
@@ -72,6 +82,8 @@ limits.
 - `GET /ready` validates both PostgreSQL pools and transaction modes;
 - `GET /api/v1/schema/catalog` returns the safe SQL schema catalog;
 - `POST /api/v1/grounding/context` builds safe question context;
+- `POST /api/v1/sql/generate` returns validated read-only SQL without executing
+  it;
 - `/docs` and `/redoc` expose interactive API documentation;
 - `/openapi.json` provides the machine-readable API contract.
 
@@ -120,6 +132,44 @@ headers.
 
 Grounding itself does not generate SQL, call an LLM, or query the database.
 
+## Controlled LLM and Text-to-SQL pipeline
+
+The application owns a typed LLM provider through the FastAPI lifespan and
+closes it during graceful shutdown or failed startup. A deterministic mock
+provider supports local development and testing. The OpenAI-compatible HTTP
+adapter supports OpenAI, Gemini, Groq, OpenRouter, and local Ollama
+configurations without requiring provider-specific SDK packages.
+
+External provider URLs require HTTPS. Plain HTTP Ollama URLs are accepted only
+for loopback hosts. Provider responses have controlled size, content type, JSON
+shape, completion status, and error handling. API keys remain protected by the
+typed settings contract and are never included in sanitized failures.
+
+Text-to-SQL generation sends only compact grounded context to the configured
+provider. The provider must return a strict JSON proposal containing SQL and an
+explanation. Every proposal remains explicitly unvalidated until it passes the
+separate SQLGlot security validator.
+
+The validator accepts exactly one PostgreSQL `SELECT` statement and verifies
+every referenced table and column against the question context. It also applies
+a function allowlist and rejects multiple statements, writes, DDL, `COPY`,
+stars, comments, locks, `SELECT INTO`, common table expressions, subqueries,
+and set operations. A mandatory row limit is added or reduced to the configured
+maximum.
+
+Rejected proposals may enter a bounded repair loop. Every repaired proposal
+passes through the complete validator again, and exhaustion fails with a
+sanitized error instead of returning unsafe SQL.
+
+`POST /api/v1/sql/generate` returns validated SQL with HTTP 200, unsafe or
+unsupported requests with HTTP 422, and unavailable services with HTTP 503.
+Responses disable client caching and expose controlled generation, validation,
+catalog, and semantic version headers.
+
+This phase generates and validates SQL but never executes it. Manual validation
+used deterministic providers and simulated provider transports; no external
+provider request or generated SQL reached the database.
+
 ## Validated database foundation
 
 The `retail` schema contains:
@@ -142,8 +192,8 @@ customers are also blocked.
 
 ## Quality evidence
 
-- 157 automated tests passed;
-- branch-aware backend coverage is 91.03%;
+- 247 automated tests passed;
+- branch-aware backend coverage is 91.48%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;
