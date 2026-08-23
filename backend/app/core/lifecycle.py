@@ -9,6 +9,10 @@ from fastapi import FastAPI
 from starlette.concurrency import run_in_threadpool
 
 from backend.app.core.config import Settings
+from backend.app.services.catalog_cache import (
+    CatalogCacheFactory,
+    create_schema_catalog_cache,
+)
 
 type FastAPILifespan = Callable[
     [FastAPI],
@@ -33,6 +37,7 @@ type DatabasePoolFactory = Callable[
 def create_database_lifespan(
     settings: Settings,
     pool_factory: DatabasePoolFactory,
+    catalog_cache_factory: CatalogCacheFactory = (create_schema_catalog_cache),
 ) -> FastAPILifespan:
     """Create a FastAPI lifespan that owns the database pools."""
 
@@ -41,6 +46,9 @@ def create_database_lifespan(
         application: FastAPI,
     ) -> AsyncIterator[None]:
         application.state.database_ready = False
+
+        schema_catalog_cache = catalog_cache_factory(settings)
+        application.state.schema_catalog_cache = schema_catalog_cache
 
         pools = pool_factory(settings)
         application.state.database_pools = pools

@@ -13,6 +13,8 @@ Implemented and manually validated:
 - FastAPI application factory with `/health` liveness and `/ready` readiness;
 - independent application and analytics PostgreSQL connection pools;
 - managed pool startup and shutdown through the FastAPI lifespan;
+- secure schema intelligence generated from SQLAlchemy metadata;
+- thread-safe schema catalog caching with TTL and ETag revalidation;
 - typed environment configuration with protected secrets;
 - PostgreSQL 18.6 through Docker Compose;
 - Alembic migration infrastructure;
@@ -26,7 +28,7 @@ Implemented and manually validated:
 
 Still planned:
 
-- schema intelligence and semantic layer;
+- semantic business layer and question-to-schema grounding;
 - LLM provider abstraction;
 - Text-to-SQL generation, validation, and repair;
 - deterministic analytics and visualization engines;
@@ -66,6 +68,7 @@ limits.
 
 - `GET /health` provides process liveness and service metadata;
 - `GET /ready` validates both PostgreSQL pools and transaction modes;
+- `GET /api/v1/schema/catalog` returns the safe SQL schema catalog;
 - `/docs` and `/redoc` expose interactive API documentation;
 - `/openapi.json` provides the machine-readable API contract.
 
@@ -73,6 +76,21 @@ The API binds to localhost in the validated development environment. Database
 pools are created closed, opened during application startup, and closed during
 graceful shutdown. Readiness failures return HTTP 503 without exposing
 connection strings, credentials, or internal exceptions.
+
+## Safe schema intelligence
+
+The application builds a deterministic catalog from the declared SQLAlchemy
+metadata without querying the live database. Catalog version 1 exposes eight
+retail tables, 52 permitted columns, and eight foreign-key references.
+
+The catalog includes documented data types, nullability, primary keys, and
+relationships. Its exposure policy is derived from the PostgreSQL grant policy,
+so `customers.email` and `customers.document_number` are never included.
+
+A thread-safe in-memory cache builds the catalog lazily and uses the configured
+300-second TTL. The HTTP endpoint supplies an ETag, supports conditional
+requests with HTTP 304, and returns a sanitized HTTP 503 response if catalog
+construction is unavailable.
 
 ## Validated database foundation
 
@@ -96,8 +114,8 @@ customers are also blocked.
 
 ## Quality evidence
 
-- 97 automated tests passed;
-- branch-aware backend coverage is 87.07%;
+- 117 automated tests passed;
+- branch-aware backend coverage is 88.72%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;
