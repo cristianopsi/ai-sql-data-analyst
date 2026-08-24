@@ -18,6 +18,34 @@ type QueryResultRow = tuple[
     QueryResultValue,
     ...,
 ]
+type QueryResultValueKind = Literal[
+    "boolean",
+    "integer",
+    "number",
+    "text",
+    "date",
+    "time",
+    "datetime",
+    "uuid",
+    "unknown",
+]
+
+
+class QueryResultColumnMetadata(BaseModel):
+    """Trusted internal metadata obtained from PostgreSQL."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        str_strip_whitespace=True,
+        strict=True,
+    )
+
+    name: str = Field(min_length=1)
+    postgres_type_code: int = Field(ge=1)
+    value_kind: QueryResultValueKind
+
+
 type QueryExecutionApiErrorDetail = Literal[
     "Question is invalid",
     "Query could not be generated safely",
@@ -71,6 +99,13 @@ class QueryExecutionResult(BaseModel):
         str,
         ...,
     ] = Field(min_length=1)
+    internal_column_metadata: tuple[
+        QueryResultColumnMetadata,
+        ...,
+    ] = Field(
+        default=(),
+        exclude=True,
+    )
     rows: tuple[
         QueryResultRow,
         ...,
@@ -126,6 +161,12 @@ class QueryExecutionResult(BaseModel):
 
         if any(not column for column in normalized_columns):
             raise ValueError("Query result columns cannot be empty")
+
+        if self.internal_column_metadata:
+            metadata_names = tuple(metadata.name for metadata in self.internal_column_metadata)
+
+            if metadata_names != normalized_columns:
+                raise ValueError("Internal column metadata must match the query result columns")
 
         normalized_column_keys = tuple(column.casefold() for column in normalized_columns)
 

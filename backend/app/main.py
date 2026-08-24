@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app import __version__
+from backend.app.api.analytics import router as analytics_router
 from backend.app.api.catalog import router as catalog_router
 from backend.app.api.grounding import router as grounding_router
 from backend.app.api.health import router as health_router
@@ -17,6 +18,10 @@ from backend.app.core.lifecycle import (
     create_database_lifespan,
 )
 from backend.app.db.pools import create_database_pools
+from backend.app.services.analytics_engine import (
+    AnalyticsEngineFactory,
+    create_analytics_engine,
+)
 from backend.app.services.catalog_cache import (
     CatalogCacheFactory,
     create_schema_catalog_cache,
@@ -62,6 +67,7 @@ def create_app(
         create_sql_generation_pipeline
     ),
     query_executor_factory: QueryExecutorFactory = (create_query_executor),
+    analytics_engine_factory: AnalyticsEngineFactory = (create_analytics_engine),
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
 
@@ -82,6 +88,7 @@ def create_app(
             sql_validator_factory,
             sql_generation_pipeline_factory,
             query_executor_factory,
+            analytics_engine_factory,
         ),
     )
 
@@ -101,6 +108,7 @@ def create_app(
     application.include_router(grounding_router)
     application.include_router(sql_generation_router)
     application.include_router(query_execution_router)
+    application.include_router(analytics_router)
 
     return application
 

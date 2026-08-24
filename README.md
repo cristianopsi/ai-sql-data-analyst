@@ -29,6 +29,8 @@ Implemented and manually validated:
   role;
 - strict JSON-safe query result contracts with enforced row and timeout
   metadata;
+- deterministic software analytics driven by trusted PostgreSQL column metadata;
+- governed metric summaries, dimension rankings, and temporal series;
 - typed environment configuration with protected secrets;
 - PostgreSQL 18.6 through Docker Compose;
 - Alembic migration infrastructure;
@@ -42,7 +44,7 @@ Implemented and manually validated:
 
 Still planned:
 
-- deterministic analytics and visualization engines;
+- deterministic visualization engine and chart specifications;
 - grounded insight generation;
 - Streamlit, evaluation, observability, and CI/CD.
 
@@ -58,10 +60,11 @@ tests, and explicit validation.
 
 Natural-language question → schema grounding → semantic context → controlled
 SQL proposal → SQLGlot AST and security validation → bounded repair → validated
-read-only SQL → least-privilege PostgreSQL execution.
+read-only SQL → least-privilege PostgreSQL execution → trusted result metadata →
+deterministic software analytics.
 
-Future phases will add deterministic analytics, chart specifications, and
-grounded explanations.
+Future phases will add chart specifications, grounded explanations, and
+interactive analytical presentation.
 
 ## Security foundations
 
@@ -78,7 +81,9 @@ Application-layer controls enforce SQLGlot AST validation, contextual table
 and column allowlists, function allowlists, bounded repair revalidation, and
 mandatory result limits. Execution uses only the analytics pool, explicitly
 enters a read-only transaction, verifies its runtime mode, and applies controlled
-timeouts. Future phases will add audit events and deterministic analytics.
+timeouts. Deterministic analytics accepts only trusted internal result metadata
+and never delegates calculations to the LLM. Future phases will add audit events
+and visualization controls.
 
 ## Current API surface
 
@@ -90,6 +95,8 @@ timeouts. Future phases will add audit events and deterministic analytics.
   it;
 - `POST /api/v1/query/execute` generates, validates, and executes one controlled
   read-only query;
+- `POST /api/v1/analytics/analyze` generates, executes, and deterministically
+  analyzes one governed natural-language question;
 - `/docs` and `/redoc` expose interactive API documentation;
 - `/openapi.json` provides the machine-readable API contract.
 
@@ -212,6 +219,42 @@ five rows under a 25-row limit with an 8,000-millisecond statement timeout.
 Runtime read-only checks remained enabled, database row counts were unchanged,
 and no external provider request was made.
 
+## Deterministic analytics
+
+The application owns a stateless deterministic analytics engine through the
+FastAPI lifespan. SQL generation carries its compact grounding context as
+excluded internal metadata, while query execution obtains trusted PostgreSQL
+type codes from the cursor description. Neither internal context nor column
+metadata appears in serialized responses or OpenAPI.
+
+`POST /api/v1/analytics/analyze` accepts only a natural-language question.
+Clients cannot submit raw SQL, result rows, or previously generated execution
+objects. The server performs grounding, generation, AST validation, bounded
+repair, read-only execution, and deterministic analysis in that order.
+
+The engine uses typed result metadata and fixed-scale `Decimal` arithmetic.
+It calculates metric totals, averages, minima, and maxima; dimension rankings
+and shares; and ordered temporal series with absolute and percentage changes.
+Numeric-looking strings are never guessed as numbers. Missing or unknown
+metadata, non-finite values, inconsistent results, and unsupported analytical
+shapes fail closed.
+
+The LLM proposes SQL but never calculates analytical outputs. Analytics
+responses expose governed summaries, rankings, series, source-row counts, and
+version metadata without returning raw SQL or database rows. The endpoint
+returns HTTP 200 for deterministic results, HTTP 422 for invalid or unsafe
+requests, and HTTP 503 for unavailable managed services. Responses disable
+client caching and expose controlled analytics, execution, catalog, and
+semantic versions.
+
+Manual validation exercised the endpoint through a real Uvicorn HTTP server
+and the local PostgreSQL analytics role. A governed approved-revenue-by-region
+request analyzed five rows, matched the database total, preserved descending
+ranking order, and left region, order, and payment counts unchanged. Runtime
+read-only checks remained enabled, the deterministic provider generated one
+SQL proposal, graceful shutdown closed the provider, and no external network
+request was made.
+
 ## Validated database foundation
 
 The `retail` schema contains:
@@ -234,8 +277,8 @@ customers are also blocked.
 
 ## Quality evidence
 
-- 280 automated tests passed;
-- branch-aware backend coverage is 91.42%;
+- 314 automated tests passed;
+- branch-aware backend coverage is 90.12%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;

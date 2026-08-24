@@ -1,3 +1,11 @@
+from backend.app.services.analytics_engine import (
+    AnalyticsEngineError,
+    AnalyticsEngineFactory,
+    AnalyticsInputError,
+    DeterministicAnalyticsEngine,
+    analyze_query_result,
+    create_analytics_engine,
+)
 from backend.app.services.catalog_cache import (
     CatalogCacheFactory,
     SchemaCatalogCache,
@@ -80,6 +88,12 @@ from backend.app.services.text_to_sql import (
 )
 
 __all__ = [
+    "AnalyticsEngineError",
+    "AnalyticsEngineFactory",
+    "AnalyticsInputError",
+    "DeterministicAnalyticsEngine",
+    "analyze_query_result",
+    "create_analytics_engine",
     "DeterministicMockLLMProvider",
     "LLMProvider",
     "LLMProviderConfigurationError",

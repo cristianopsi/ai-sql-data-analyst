@@ -9,6 +9,9 @@ from pydantic import (
 from backend.app.schemas.llm import (
     LLMTokenUsage,
 )
+from backend.app.schemas.semantic_context import (
+    CompactGroundingContext,
+)
 from backend.app.schemas.sql_validation import (
     ValidatedSQL,
 )
@@ -66,6 +69,11 @@ class SQLGenerationResult(BaseModel):
 
     generation_version: Literal["1"] = "1"
     validated_sql: ValidatedSQL
+    internal_context: CompactGroundingContext | None = Field(
+        default=None,
+        exclude=True,
+        repr=False,
+    )
     generation_attempts: int = Field(ge=1)
     repair_attempts: int = Field(ge=0)
 

@@ -101,6 +101,7 @@ class SQLGenerationPipeline:
 
                 return SQLGenerationResult(
                     validated_sql=validated,
+                    internal_context=context,
                     generation_attempts=(generation_attempts),
                     repair_attempts=(repair_attempts),
                 )

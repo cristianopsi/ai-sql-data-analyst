@@ -21,6 +21,7 @@ from backend.app.schemas.query_execution import (
     QueryExecutionApiErrorResponse,
     QueryExecutionRequest,
     QueryExecutionResult,
+    QueryResultColumnMetadata,
     QueryResultRow,
 )
 from backend.app.schemas.sql_generation import (
@@ -277,6 +278,7 @@ def test_execution_contract_is_immutable() -> None:
 @dataclass(frozen=True)
 class FakeResultColumn:
     name: str
+    type_code: int
 
 
 class FakeQueryCursor:
@@ -307,6 +309,7 @@ class FakeQueryCursor:
             self.description = (
                 FakeResultColumn(
                     name="transaction_read_only",
+                    type_code=25,
                 ),
             )
             self._rows = ((self._connection.read_only,),)
@@ -317,7 +320,15 @@ class FakeQueryCursor:
                 raise RuntimeError("sensitive database failure")
 
             self.description = tuple(
-                FakeResultColumn(name=column) for column in self._connection.columns
+                FakeResultColumn(
+                    name=column,
+                    type_code=type_code,
+                )
+                for column, type_code in zip(
+                    self._connection.columns,
+                    self._connection.type_codes,
+                    strict=True,
+                )
             )
             self._rows = self._connection.rows
             return
@@ -349,12 +360,18 @@ class FakeAnalyticsConnection:
             tuple[object, ...],
             ...,
         ],
+        type_codes: tuple[int, ...] | None = None,
         read_only: str = "on",
         fail_query: bool = False,
     ) -> None:
         self.generated_sql = generated_sql
         self.columns = columns
         self.rows = rows
+        self.type_codes = tuple(1043 for _ in columns) if type_codes is None else type_codes
+
+        if len(self.type_codes) != len(self.columns):
+            raise ValueError("Fake type codes must match fake columns")
+
         self.read_only = read_only
         self.fail_query = fail_query
         self.statements: list[
@@ -462,6 +479,16 @@ def test_query_executor_uses_read_only_transaction_and_normalizes_values() -> No
             "active",
             "optional",
         ),
+        type_codes=(
+            1043,
+            1700,
+            1082,
+            1184,
+            1083,
+            2950,
+            16,
+            1043,
+        ),
         rows=(
             (
                 "North",
@@ -508,6 +535,32 @@ def test_query_executor_uses_read_only_transaction_and_normalizes_values() -> No
     assert result.row_count == 1
     assert result.execution_time_ms == pytest.approx(25.0)
     assert result.transaction_read_only is True
+    assert tuple(
+        (
+            metadata.name,
+            metadata.postgres_type_code,
+            metadata.value_kind,
+        )
+        for metadata in result.internal_column_metadata
+    ) == (
+        ("region", 1043, "text"),
+        ("amount", 1700, "number"),
+        ("sale_date", 1082, "date"),
+        ("created_at", 1184, "datetime"),
+        ("sale_time", 1083, "time"),
+        ("identifier", 2950, "uuid"),
+        ("active", 16, "boolean"),
+        ("optional", 1043, "text"),
+    )
+    assert "internal_column_metadata" not in result.model_dump(
+        mode="json",
+    )
+    assert (
+        "internal_column_metadata"
+        not in QueryExecutionResult.model_json_schema(
+            mode="serialization",
+        )["properties"]
+    )
     assert pool.timeouts == [
         10.0,
     ]
@@ -525,6 +578,53 @@ def test_query_executor_uses_read_only_transaction_and_normalizes_values() -> No
         generation.validated_sql.sql,
     )
     assert connection.statements[1][1] == ("8000ms",)
+
+
+def test_query_executor_marks_unknown_postgres_type() -> None:
+    generation = build_generation_result(
+        row_limit=1,
+    )
+    connection = FakeAnalyticsConnection(
+        generated_sql=(generation.validated_sql.sql),
+        columns=("custom_value",),
+        type_codes=(999_999,),
+        rows=(("controlled",),),
+    )
+    executor, _ = build_executor(connection)
+
+    result = executor.execute(generation)
+
+    assert result.internal_column_metadata == (
+        QueryResultColumnMetadata(
+            name="custom_value",
+            postgres_type_code=999_999,
+            value_kind="unknown",
+        ),
+    )
+
+
+def test_query_executor_rejects_invalid_column_metadata() -> None:
+    generation = build_generation_result(
+        row_limit=1,
+    )
+    connection = FakeAnalyticsConnection(
+        generated_sql=(generation.validated_sql.sql),
+        columns=("region",),
+        type_codes=(0,),
+        rows=(("North",),),
+    )
+    executor, _ = build_executor(connection)
+
+    with pytest.raises(
+        QueryExecutionResultError,
+        match="metadata is unavailable",
+    ):
+        executor.execute(generation)
+
+    assert connection.events == [
+        "transaction:begin",
+        "transaction:rollback",
+    ]
 
 
 def test_query_executor_rejects_non_read_only_runtime() -> None:

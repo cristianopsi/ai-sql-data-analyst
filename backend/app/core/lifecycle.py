@@ -10,6 +10,10 @@ from starlette.concurrency import run_in_threadpool
 
 from backend.app.core.config import Settings
 from backend.app.db.pools import DatabasePools
+from backend.app.services.analytics_engine import (
+    AnalyticsEngineFactory,
+    create_analytics_engine,
+)
 from backend.app.services.catalog_cache import (
     CatalogCacheFactory,
     create_schema_catalog_cache,
@@ -73,6 +77,7 @@ def create_database_lifespan(
         create_sql_generation_pipeline
     ),
     query_executor_factory: QueryExecutorFactory = (create_query_executor),
+    analytics_engine_factory: AnalyticsEngineFactory = (create_analytics_engine),
 ) -> FastAPILifespan:
     """Create a FastAPI lifespan that owns the database pools."""
 
@@ -127,6 +132,9 @@ def create_database_lifespan(
                 ),
             )
             application.state.query_executor = query_executor
+
+            analytics_engine = analytics_engine_factory()
+            application.state.analytics_engine = analytics_engine
 
             await run_in_threadpool(pools.open)
             pools_opened = True

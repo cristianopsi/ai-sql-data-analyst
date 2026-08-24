@@ -14,8 +14,10 @@ from backend.app.db.pools import (
 )
 from backend.app.schemas.query_execution import (
     QueryExecutionResult,
+    QueryResultColumnMetadata,
     QueryResultRow,
     QueryResultValue,
+    QueryResultValueKind,
 )
 from backend.app.schemas.sql_generation import (
     SQLGenerationResult,
@@ -36,6 +38,77 @@ class QueryExecutionResultError(QueryExecutionError):
 
 class QueryExecutionUnavailableError(QueryExecutionError):
     """Raised when the analytics database cannot execute a query."""
+
+
+POSTGRES_VALUE_KIND_BY_TYPE_CODE: dict[
+    int,
+    QueryResultValueKind,
+] = {
+    16: "boolean",
+    20: "integer",
+    21: "integer",
+    23: "integer",
+    26: "integer",
+    700: "number",
+    701: "number",
+    1700: "number",
+    18: "text",
+    19: "text",
+    25: "text",
+    1042: "text",
+    1043: "text",
+    1082: "date",
+    1083: "time",
+    1266: "time",
+    1114: "datetime",
+    1184: "datetime",
+    2950: "uuid",
+}
+
+
+def build_query_result_column_metadata(
+    column: object,
+) -> QueryResultColumnMetadata:
+    """Build trusted metadata from one psycopg description column."""
+    name = getattr(
+        column,
+        "name",
+        None,
+    )
+    type_code = getattr(
+        column,
+        "type_code",
+        None,
+    )
+
+    if (
+        not isinstance(
+            name,
+            str,
+        )
+        or isinstance(
+            type_code,
+            bool,
+        )
+        or not isinstance(
+            type_code,
+            int,
+        )
+        or type_code < 1
+    ):
+        raise QueryExecutionResultError("Query result column metadata is unavailable")
+
+    try:
+        return QueryResultColumnMetadata(
+            name=name,
+            postgres_type_code=type_code,
+            value_kind=POSTGRES_VALUE_KIND_BY_TYPE_CODE.get(
+                type_code,
+                "unknown",
+            ),
+        )
+    except ValidationError:
+        raise QueryExecutionResultError("Query result column metadata is unavailable") from None
 
 
 def normalize_query_value(
@@ -164,7 +237,13 @@ class QueryExecutor:
                 if description is None:
                     raise QueryExecutionResultError("Query did not return a result set")
 
-                columns = tuple(column.name for column in description)
+                column_metadata = tuple(
+                    build_query_result_column_metadata(
+                        column,
+                    )
+                    for column in description
+                )
+                columns = tuple(metadata.name for metadata in column_metadata)
                 raw_rows = cursor.fetchall()
 
             rows: tuple[QueryResultRow, ...] = tuple(
@@ -179,6 +258,7 @@ class QueryExecutor:
                 return QueryExecutionResult(
                     generation=generation,
                     columns=columns,
+                    internal_column_metadata=column_metadata,
                     rows=rows,
                     row_count=len(rows),
                     statement_timeout_ms=(self._statement_timeout_ms),
