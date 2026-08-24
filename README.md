@@ -31,6 +31,8 @@ Implemented and manually validated:
   metadata;
 - deterministic software analytics driven by trusted PostgreSQL column metadata;
 - governed metric summaries, dimension rankings, and temporal series;
+- deterministic KPI, bar, and line visualization specifications;
+- stable chart identifiers and fixed ordering without LLM chart selection;
 - typed environment configuration with protected secrets;
 - PostgreSQL 18.6 through Docker Compose;
 - Alembic migration infrastructure;
@@ -44,9 +46,8 @@ Implemented and manually validated:
 
 Still planned:
 
-- deterministic visualization engine and chart specifications;
 - grounded insight generation;
-- Streamlit, evaluation, observability, and CI/CD.
+- Streamlit visualization rendering, evaluation, observability, and CI/CD.
 
 Features are marked as implemented only after code execution, real output,
 tests, and explicit validation.
@@ -61,10 +62,11 @@ tests, and explicit validation.
 Natural-language question → schema grounding → semantic context → controlled
 SQL proposal → SQLGlot AST and security validation → bounded repair → validated
 read-only SQL → least-privilege PostgreSQL execution → trusted result metadata →
-deterministic software analytics.
+deterministic software analytics → typed KPI, bar, and line visualization
+specifications.
 
-Future phases will add chart specifications, grounded explanations, and
-interactive analytical presentation.
+Future phases will add grounded explanations, interactive Plotly rendering, and
+analytical presentation through Streamlit.
 
 ## Security foundations
 
@@ -82,8 +84,10 @@ and column allowlists, function allowlists, bounded repair revalidation, and
 mandatory result limits. Execution uses only the analytics pool, explicitly
 enters a read-only transaction, verifies its runtime mode, and applies controlled
 timeouts. Deterministic analytics accepts only trusted internal result metadata
-and never delegates calculations to the LLM. Future phases will add audit events
-and visualization controls.
+and never delegates calculations to the LLM. Deterministic visualization accepts
+only internal analytics results and has no LLM, database, network, or rendering
+capability. Future phases will add audit events and frontend visualization
+controls.
 
 ## Current API surface
 
@@ -97,6 +101,8 @@ and visualization controls.
   read-only query;
 - `POST /api/v1/analytics/analyze` generates, executes, and deterministically
   analyzes one governed natural-language question;
+- `POST /api/v1/visualizations/specify` generates deterministic KPI, bar, and
+  line specifications for one governed natural-language question;
 - `/docs` and `/redoc` expose interactive API documentation;
 - `/openapi.json` provides the machine-readable API contract.
 
@@ -255,6 +261,40 @@ read-only checks remained enabled, the deterministic provider generated one
 SQL proposal, graceful shutdown closed the provider, and no external network
 request was made.
 
+## Deterministic visualization specifications
+
+The application owns a stateless deterministic visualization engine through the
+FastAPI lifespan. The engine accepts only the immutable deterministic analytics
+result produced internally. Clients cannot submit SQL, query rows, execution
+objects, or analytics objects.
+
+`POST /api/v1/visualizations/specify` accepts only a natural-language question.
+The server performs grounding, SQL generation, AST validation, bounded repair,
+read-only execution, deterministic analysis, and visualization specification in
+that order.
+
+Each governed metric summary produces one KPI specification, each categorical
+ranking produces one bar specification, and each temporal series produces one
+line specification. Metric units and fixed-scale `Decimal` values are preserved.
+Stable SHA-256 identifiers and the fixed KPI, bar, then line order make results
+reproducible.
+
+The visualization engine does not call an LLM, query the database, access the
+network, import Plotly, or render charts. Responses contain typed specifications
+and version metadata without raw SQL, rows, grounding context, or internal
+column metadata. The endpoint returns HTTP 200 for deterministic specifications,
+HTTP 422 for invalid or unsafe requests, and HTTP 503 for unavailable managed
+services. Responses disable client caching.
+
+Manual validation exercised the endpoint through a real Uvicorn HTTP server and
+the local PostgreSQL analytics role. A governed approved-revenue-by-region
+request generated and executed one schema-qualified read-only query. The KPI and
+five-item regional bar matched the database total, preserved descending ranking
+order, and left region, order, and payment counts unchanged. Runtime read-only
+checks remained enabled, only one provider generation occurred, and a canonical
+restricted request was blocked before the provider. Graceful shutdown closed
+the provider, released port 8000, and made no external network request.
+
 ## Validated database foundation
 
 The `retail` schema contains:
@@ -277,8 +317,8 @@ customers are also blocked.
 
 ## Quality evidence
 
-- 314 automated tests passed;
-- branch-aware backend coverage is 90.12%;
+- 349 automated tests passed;
+- branch-aware backend coverage is 90.41%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;

@@ -12,6 +12,7 @@ from backend.app.api.query_execution import (
 from backend.app.api.sql_generation import (
     router as sql_generation_router,
 )
+from backend.app.api.visualization import router as visualization_router
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.lifecycle import (
     DatabasePoolFactory,
@@ -50,6 +51,10 @@ from backend.app.services.text_to_sql import (
     TextToSQLServiceFactory,
     create_text_to_sql_service,
 )
+from backend.app.services.visualization_engine import (
+    VisualizationEngineFactory,
+    create_visualization_engine,
+)
 
 
 def create_app(
@@ -68,6 +73,7 @@ def create_app(
     ),
     query_executor_factory: QueryExecutorFactory = (create_query_executor),
     analytics_engine_factory: AnalyticsEngineFactory = (create_analytics_engine),
+    visualization_engine_factory: VisualizationEngineFactory = (create_visualization_engine),
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
 
@@ -89,6 +95,7 @@ def create_app(
             sql_generation_pipeline_factory,
             query_executor_factory,
             analytics_engine_factory,
+            visualization_engine_factory,
         ),
     )
 
@@ -109,6 +116,7 @@ def create_app(
     application.include_router(sql_generation_router)
     application.include_router(query_execution_router)
     application.include_router(analytics_router)
+    application.include_router(visualization_router)
 
     return application
 

@@ -86,8 +86,20 @@ from backend.app.services.text_to_sql import (
     TextToSQLUnavailableError,
     create_text_to_sql_service,
 )
+from backend.app.services.visualization_engine import (
+    DeterministicVisualizationEngine,
+    VisualizationEngineError,
+    VisualizationEngineFactory,
+    VisualizationInputError,
+    create_visualization_engine,
+)
 
 __all__ = [
+    "DeterministicVisualizationEngine",
+    "VisualizationEngineError",
+    "VisualizationEngineFactory",
+    "VisualizationInputError",
+    "create_visualization_engine",
     "AnalyticsEngineError",
     "AnalyticsEngineFactory",
     "AnalyticsInputError",

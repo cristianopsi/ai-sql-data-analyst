@@ -42,6 +42,10 @@ from backend.app.services.text_to_sql import (
     TextToSQLServiceFactory,
     create_text_to_sql_service,
 )
+from backend.app.services.visualization_engine import (
+    VisualizationEngineFactory,
+    create_visualization_engine,
+)
 
 type FastAPILifespan = Callable[
     [FastAPI],
@@ -78,6 +82,7 @@ def create_database_lifespan(
     ),
     query_executor_factory: QueryExecutorFactory = (create_query_executor),
     analytics_engine_factory: AnalyticsEngineFactory = (create_analytics_engine),
+    visualization_engine_factory: VisualizationEngineFactory = (create_visualization_engine),
 ) -> FastAPILifespan:
     """Create a FastAPI lifespan that owns the database pools."""
 
@@ -135,6 +140,9 @@ def create_database_lifespan(
 
             analytics_engine = analytics_engine_factory()
             application.state.analytics_engine = analytics_engine
+
+            visualization_engine = visualization_engine_factory()
+            application.state.visualization_engine = visualization_engine
 
             await run_in_threadpool(pools.open)
             pools_opened = True
