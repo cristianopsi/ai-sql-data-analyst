@@ -22,6 +22,10 @@ from backend.app.services.grounding_context import (
     GroundingContextServiceFactory,
     create_grounding_context_service,
 )
+from backend.app.services.insight_engine import (
+    InsightEngineFactory,
+    create_insight_engine,
+)
 from backend.app.services.llm_provider import (
     LLMProviderFactory,
     create_llm_provider,
@@ -83,6 +87,7 @@ def create_database_lifespan(
     query_executor_factory: QueryExecutorFactory = (create_query_executor),
     analytics_engine_factory: AnalyticsEngineFactory = (create_analytics_engine),
     visualization_engine_factory: VisualizationEngineFactory = (create_visualization_engine),
+    insight_engine_factory: InsightEngineFactory = create_insight_engine,
 ) -> FastAPILifespan:
     """Create a FastAPI lifespan that owns the database pools."""
 
@@ -143,6 +148,9 @@ def create_database_lifespan(
 
             visualization_engine = visualization_engine_factory()
             application.state.visualization_engine = visualization_engine
+
+            insight_engine = insight_engine_factory(llm_provider)
+            application.state.insight_engine = insight_engine
 
             await run_in_threadpool(pools.open)
             pools_opened = True

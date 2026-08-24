@@ -19,6 +19,14 @@ from backend.app.services.grounding_context import (
     create_grounding_context_service,
     serialize_grounding_context,
 )
+from backend.app.services.insight_engine import (
+    GroundedInsightEngine,
+    InsightEngineError,
+    InsightEngineFactory,
+    InsightInputError,
+    InsightProviderResponseError,
+    create_insight_engine,
+)
 from backend.app.services.llm_provider import (
     DeterministicMockLLMProvider,
     LLMProvider,
@@ -95,6 +103,12 @@ from backend.app.services.visualization_engine import (
 )
 
 __all__ = [
+    "GroundedInsightEngine",
+    "InsightEngineError",
+    "InsightEngineFactory",
+    "InsightInputError",
+    "InsightProviderResponseError",
+    "create_insight_engine",
     "DeterministicVisualizationEngine",
     "VisualizationEngineError",
     "VisualizationEngineFactory",

@@ -33,6 +33,8 @@ Implemented and manually validated:
 - governed metric summaries, dimension rankings, and temporal series;
 - deterministic KPI, bar, and line visualization specifications;
 - stable chart identifiers and fixed ordering without LLM chart selection;
+- grounded narrative insights supported by allowlisted internal evidence;
+- fail-closed claim validation without LLM calculation or chart selection;
 - typed environment configuration with protected secrets;
 - PostgreSQL 18.6 through Docker Compose;
 - Alembic migration infrastructure;
@@ -46,7 +48,6 @@ Implemented and manually validated:
 
 Still planned:
 
-- grounded insight generation;
 - Streamlit visualization rendering, evaluation, observability, and CI/CD.
 
 Features are marked as implemented only after code execution, real output,
@@ -63,10 +64,10 @@ Natural-language question → schema grounding → semantic context → controll
 SQL proposal → SQLGlot AST and security validation → bounded repair → validated
 read-only SQL → least-privilege PostgreSQL execution → trusted result metadata →
 deterministic software analytics → typed KPI, bar, and line visualization
-specifications.
+specifications → grounded narrative insights with validated evidence references.
 
-Future phases will add grounded explanations, interactive Plotly rendering, and
-analytical presentation through Streamlit.
+Future phases will add interactive Plotly rendering and analytical presentation
+through Streamlit.
 
 ## Security foundations
 
@@ -86,7 +87,10 @@ enters a read-only transaction, verifies its runtime mode, and applies controlle
 timeouts. Deterministic analytics accepts only trusted internal result metadata
 and never delegates calculations to the LLM. Deterministic visualization accepts
 only internal analytics results and has no LLM, database, network, or rendering
-capability. Future phases will add audit events and frontend visualization
+capability. Grounded insight generation accepts only internal analytics and
+visualization evidence. The LLM writes narrative but cannot calculate metrics,
+generate SQL, or select charts; software validates every claim and evidence
+reference. Future phases will add audit events and frontend visualization
 controls.
 
 ## Current API surface
@@ -103,6 +107,8 @@ controls.
   analyzes one governed natural-language question;
 - `POST /api/v1/visualizations/specify` generates deterministic KPI, bar, and
   line specifications for one governed natural-language question;
+- `POST /api/v1/insights/generate` produces grounded narrative claims for one
+  governed natural-language question;
 - `/docs` and `/redoc` expose interactive API documentation;
 - `/openapi.json` provides the machine-readable API contract.
 
@@ -295,6 +301,48 @@ checks remained enabled, only one provider generation occurred, and a canonical
 restricted request was blocked before the provider. Graceful shutdown closed
 the provider, released port 8000, and made no external network request.
 
+## Grounded insight generation
+
+The application owns a grounded insight engine through the FastAPI lifespan and
+reuses the managed LLM provider. The engine accepts only immutable deterministic
+analytics and visualization results produced internally. Clients cannot submit
+SQL, query rows, analytics objects, visualization objects, or evidence packets.
+
+`POST /api/v1/insights/generate` accepts only a natural-language question. The
+server performs grounding, SQL generation, AST validation, bounded repair,
+read-only execution, deterministic analysis, visualization specification, and
+grounded explanation in that order.
+
+The provider receives a bounded evidence packet containing only trusted analytics
+and visualization data plus allowlisted metric names and specification
+identifiers. Each claim must reference a known metric or visualization. The LLM
+proposes only narrative text; it does not calculate metrics, generate additional
+SQL, modify deterministic results, or select charts.
+
+Provider JSON is parsed directly into a strict schema. Software rejects malformed
+or incomplete responses, unknown or duplicate evidence references, uncited
+numeric claims, prohibited output material, and mismatched source versions or row
+counts. Claim identifiers are generated deterministically after validation.
+
+Successful responses preserve source versions, provider and model metadata,
+token usage, source row count, a bounded summary, grounded claims, and explicit
+evidence references. The result declares `grounded=true` and
+`calculated_by_llm=false`. Raw SQL, rows, grounding context, column metadata,
+evidence packets, and raw provider content are not returned.
+
+The endpoint returns HTTP 200 for grounded results, HTTP 422 for invalid or unsafe
+requests, and HTTP 503 for unavailable managed services. Responses disable client
+caching and expose only controlled version headers.
+
+Manual validation exercised the endpoint through a real Uvicorn HTTP server and
+the local PostgreSQL analytics role. A governed approved-revenue-by-region
+request generated one schema-qualified read-only query and one grounded narrative
+proposal. Five source rows produced one cited claim, while runtime read-only
+checks remained enabled and region, order, and payment counts remained
+unchanged. A request containing client evidence was rejected before the provider.
+Graceful shutdown closed the shared provider, released port 8000, and made no
+external network request.
+
 ## Validated database foundation
 
 The `retail` schema contains:
@@ -317,8 +365,8 @@ customers are also blocked.
 
 ## Quality evidence
 
-- 349 automated tests passed;
-- branch-aware backend coverage is 90.41%;
+- 399 automated tests passed;
+- branch-aware backend coverage is 90.45%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;
