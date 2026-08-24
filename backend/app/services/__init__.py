@@ -27,6 +27,16 @@ from backend.app.services.openai_compatible_provider import (
     OpenAICompatibleProviderFactory,
     create_openai_compatible_provider,
 )
+from backend.app.services.query_executor import (
+    QueryExecutionError,
+    QueryExecutionResultError,
+    QueryExecutionSecurityError,
+    QueryExecutionUnavailableError,
+    QueryExecutor,
+    QueryExecutorFactory,
+    create_query_executor,
+    normalize_query_value,
+)
 from backend.app.services.question_grounding import (
     QuestionGroundingError,
     ground_question,
@@ -82,6 +92,14 @@ __all__ = [
     "OpenAICompatibleLLMProvider",
     "OpenAICompatibleProviderFactory",
     "create_openai_compatible_provider",
+    "QueryExecutionError",
+    "QueryExecutionResultError",
+    "QueryExecutionSecurityError",
+    "QueryExecutionUnavailableError",
+    "QueryExecutor",
+    "QueryExecutorFactory",
+    "create_query_executor",
+    "normalize_query_value",
     "GroundingContextError",
     "GroundingContextService",
     "GroundingContextServiceFactory",

@@ -25,6 +25,10 @@ Implemented and manually validated:
   allowlists;
 - bounded SQL repair with revalidation after every proposal;
 - validated SQL generation API that does not execute generated statements;
+- controlled read-only query execution through the least-privilege analytics
+  role;
+- strict JSON-safe query result contracts with enforced row and timeout
+  metadata;
 - typed environment configuration with protected secrets;
 - PostgreSQL 18.6 through Docker Compose;
 - Alembic migration infrastructure;
@@ -38,7 +42,6 @@ Implemented and manually validated:
 
 Still planned:
 
-- read-only execution of validated SQL through the analytics role;
 - deterministic analytics and visualization engines;
 - grounded insight generation;
 - Streamlit, evaluation, observability, and CI/CD.
@@ -55,10 +58,10 @@ tests, and explicit validation.
 
 Natural-language question → schema grounding → semantic context → controlled
 SQL proposal → SQLGlot AST and security validation → bounded repair → validated
-read-only SQL.
+read-only SQL → least-privilege PostgreSQL execution.
 
-Future phases will add read-only PostgreSQL execution, deterministic analytics,
-chart specifications, and grounded explanations.
+Future phases will add deterministic analytics, chart specifications, and
+grounded explanations.
 
 ## Security foundations
 
@@ -71,10 +74,11 @@ Currently validated:
 - statement and lock timeouts;
 - blocked runtime writes and DDL.
 
-Application-layer controls now enforce SQLGlot AST validation, contextual
-table and column allowlists, function allowlists, bounded repair revalidation,
-and mandatory result limits. Future phases will add execution-time audit events
-and deterministic analytics.
+Application-layer controls enforce SQLGlot AST validation, contextual table
+and column allowlists, function allowlists, bounded repair revalidation, and
+mandatory result limits. Execution uses only the analytics pool, explicitly
+enters a read-only transaction, verifies its runtime mode, and applies controlled
+timeouts. Future phases will add audit events and deterministic analytics.
 
 ## Current API surface
 
@@ -84,6 +88,8 @@ and deterministic analytics.
 - `POST /api/v1/grounding/context` builds safe question context;
 - `POST /api/v1/sql/generate` returns validated read-only SQL without executing
   it;
+- `POST /api/v1/query/execute` generates, validates, and executes one controlled
+  read-only query;
 - `/docs` and `/redoc` expose interactive API documentation;
 - `/openapi.json` provides the machine-readable API contract.
 
@@ -166,9 +172,45 @@ unsupported requests with HTTP 422, and unavailable services with HTTP 503.
 Responses disable client caching and expose controlled generation, validation,
 catalog, and semantic version headers.
 
-This phase generates and validates SQL but never executes it. Manual validation
-used deterministic providers and simulated provider transports; no external
-provider request or generated SQL reached the database.
+`POST /api/v1/sql/generate` stops after validation and never executes its
+result. It remains available when a caller needs to inspect validated SQL
+without accessing the database.
+
+## Controlled read-only query execution
+
+The application owns a query executor through the FastAPI lifespan. Its
+analytics-pool dependency is resolved lazily, allowing safe startup validation
+before any query is requested. Failed startup closes the managed LLM provider
+and does not open partially constructed database resources.
+
+`POST /api/v1/query/execute` accepts only a natural-language question. Clients
+cannot submit raw SQL or claim that a statement was previously validated. The
+server internally performs grounding, proposal generation, AST validation,
+bounded repair, and execution in that order.
+
+The executor runs exactly the SQL returned by the validator and uses only the
+least-privilege analytics pool. Every execution explicitly issues
+`SET TRANSACTION READ ONLY`, applies the configured PostgreSQL statement
+timeout, verifies `transaction_read_only` at runtime, and uses the configured
+pool acquisition timeout. Failure of any invariant returns a sanitized
+response.
+
+Database values are normalized into strict JSON-safe primitives. Finite decimal
+values, dates, times, and UUIDs receive deterministic string representations.
+Duplicate or empty columns, inconsistent row widths, unsupported values,
+non-finite numbers, and results above the validated row limit fail closed.
+
+The query-execution endpoint returns HTTP 200 for an executed result, HTTP 422
+for invalid questions or unsafe generation and execution, and HTTP 503 for
+unavailable managed services. Responses disable client caching and expose only
+controlled execution, generation, validation, catalog, and semantic version
+headers.
+
+Manual validation exercised the endpoint through a real Uvicorn HTTP server and
+the local PostgreSQL analytics role. A governed revenue-by-region query returned
+five rows under a 25-row limit with an 8,000-millisecond statement timeout.
+Runtime read-only checks remained enabled, database row counts were unchanged,
+and no external provider request was made.
 
 ## Validated database foundation
 
@@ -192,8 +234,8 @@ customers are also blocked.
 
 ## Quality evidence
 
-- 247 automated tests passed;
-- branch-aware backend coverage is 91.48%;
+- 280 automated tests passed;
+- branch-aware backend coverage is 91.42%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;

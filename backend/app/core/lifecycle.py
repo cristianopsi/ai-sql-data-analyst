@@ -3,12 +3,13 @@ from contextlib import (
     AbstractAsyncContextManager,
     asynccontextmanager,
 )
-from typing import Protocol
+from typing import Protocol, cast
 
 from fastapi import FastAPI
 from starlette.concurrency import run_in_threadpool
 
 from backend.app.core.config import Settings
+from backend.app.db.pools import DatabasePools
 from backend.app.services.catalog_cache import (
     CatalogCacheFactory,
     create_schema_catalog_cache,
@@ -20,6 +21,10 @@ from backend.app.services.grounding_context import (
 from backend.app.services.llm_provider import (
     LLMProviderFactory,
     create_llm_provider,
+)
+from backend.app.services.query_executor import (
+    QueryExecutorFactory,
+    create_query_executor,
 )
 from backend.app.services.sql_generation import (
     SQLGenerationPipelineFactory,
@@ -67,6 +72,7 @@ def create_database_lifespan(
     sql_generation_pipeline_factory: SQLGenerationPipelineFactory = (
         create_sql_generation_pipeline
     ),
+    query_executor_factory: QueryExecutorFactory = (create_query_executor),
 ) -> FastAPILifespan:
     """Create a FastAPI lifespan that owns the database pools."""
 
@@ -112,6 +118,15 @@ def create_database_lifespan(
 
             pools = pool_factory(settings)
             application.state.database_pools = pools
+
+            query_executor = query_executor_factory(
+                settings,
+                cast(
+                    DatabasePools,
+                    pools,
+                ),
+            )
+            application.state.query_executor = query_executor
 
             await run_in_threadpool(pools.open)
             pools_opened = True

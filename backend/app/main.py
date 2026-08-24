@@ -5,6 +5,9 @@ from backend.app import __version__
 from backend.app.api.catalog import router as catalog_router
 from backend.app.api.grounding import router as grounding_router
 from backend.app.api.health import router as health_router
+from backend.app.api.query_execution import (
+    router as query_execution_router,
+)
 from backend.app.api.sql_generation import (
     router as sql_generation_router,
 )
@@ -25,6 +28,10 @@ from backend.app.services.grounding_context import (
 from backend.app.services.llm_provider import (
     LLMProviderFactory,
     create_llm_provider,
+)
+from backend.app.services.query_executor import (
+    QueryExecutorFactory,
+    create_query_executor,
 )
 from backend.app.services.sql_generation import (
     SQLGenerationPipelineFactory,
@@ -54,6 +61,7 @@ def create_app(
     sql_generation_pipeline_factory: SQLGenerationPipelineFactory = (
         create_sql_generation_pipeline
     ),
+    query_executor_factory: QueryExecutorFactory = (create_query_executor),
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
 
@@ -73,6 +81,7 @@ def create_app(
             text_to_sql_service_factory,
             sql_validator_factory,
             sql_generation_pipeline_factory,
+            query_executor_factory,
         ),
     )
 
@@ -91,6 +100,7 @@ def create_app(
     application.include_router(catalog_router)
     application.include_router(grounding_router)
     application.include_router(sql_generation_router)
+    application.include_router(query_execution_router)
 
     return application
 
