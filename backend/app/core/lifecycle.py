@@ -12,6 +12,7 @@ from backend.app.core.config import Settings
 from backend.app.db.pools import DatabasePools
 from backend.app.services.analytics_engine import (
     AnalyticsEngineFactory,
+    DeterministicAnalyticsEngine,
     create_analytics_engine,
 )
 from backend.app.services.catalog_cache import (
@@ -23,6 +24,7 @@ from backend.app.services.grounding_context import (
     create_grounding_context_service,
 )
 from backend.app.services.insight_engine import (
+    GroundedInsightEngine,
     InsightEngineFactory,
     create_insight_engine,
 )
@@ -30,11 +32,17 @@ from backend.app.services.llm_provider import (
     LLMProviderFactory,
     create_llm_provider,
 )
+from backend.app.services.presentation_service import (
+    AnalyticalPresentationService,
+    create_presentation_service,
+)
 from backend.app.services.query_executor import (
+    QueryExecutor,
     QueryExecutorFactory,
     create_query_executor,
 )
 from backend.app.services.sql_generation import (
+    SQLGenerationPipeline,
     SQLGenerationPipelineFactory,
     create_sql_generation_pipeline,
 )
@@ -47,6 +55,7 @@ from backend.app.services.text_to_sql import (
     create_text_to_sql_service,
 )
 from backend.app.services.visualization_engine import (
+    DeterministicVisualizationEngine,
     VisualizationEngineFactory,
     create_visualization_engine,
 )
@@ -71,6 +80,18 @@ type DatabasePoolFactory = Callable[
 ]
 
 
+type PresentationServiceFactory = Callable[
+    [
+        SQLGenerationPipeline,
+        QueryExecutor,
+        DeterministicAnalyticsEngine,
+        DeterministicVisualizationEngine,
+        GroundedInsightEngine,
+    ],
+    AnalyticalPresentationService,
+]
+
+
 def create_database_lifespan(
     settings: Settings,
     pool_factory: DatabasePoolFactory,
@@ -88,6 +109,7 @@ def create_database_lifespan(
     analytics_engine_factory: AnalyticsEngineFactory = (create_analytics_engine),
     visualization_engine_factory: VisualizationEngineFactory = (create_visualization_engine),
     insight_engine_factory: InsightEngineFactory = create_insight_engine,
+    presentation_service_factory: PresentationServiceFactory = (create_presentation_service),
 ) -> FastAPILifespan:
     """Create a FastAPI lifespan that owns the database pools."""
 
@@ -151,6 +173,15 @@ def create_database_lifespan(
 
             insight_engine = insight_engine_factory(llm_provider)
             application.state.insight_engine = insight_engine
+
+            presentation_service = presentation_service_factory(
+                sql_generation_pipeline,
+                query_executor,
+                analytics_engine,
+                visualization_engine,
+                insight_engine,
+            )
+            application.state.presentation_service = presentation_service
 
             await run_in_threadpool(pools.open)
             pools_opened = True

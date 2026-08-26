@@ -7,6 +7,7 @@ from backend.app.api.catalog import router as catalog_router
 from backend.app.api.grounding import router as grounding_router
 from backend.app.api.health import router as health_router
 from backend.app.api.insights import router as insights_router
+from backend.app.api.presentation import router as presentation_router
 from backend.app.api.query_execution import (
     router as query_execution_router,
 )
@@ -17,6 +18,7 @@ from backend.app.api.visualization import router as visualization_router
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.lifecycle import (
     DatabasePoolFactory,
+    PresentationServiceFactory,
     create_database_lifespan,
 )
 from backend.app.db.pools import create_database_pools
@@ -40,6 +42,7 @@ from backend.app.services.llm_provider import (
     LLMProviderFactory,
     create_llm_provider,
 )
+from backend.app.services.presentation_service import create_presentation_service
 from backend.app.services.query_executor import (
     QueryExecutorFactory,
     create_query_executor,
@@ -80,6 +83,7 @@ def create_app(
     analytics_engine_factory: AnalyticsEngineFactory = (create_analytics_engine),
     visualization_engine_factory: VisualizationEngineFactory = (create_visualization_engine),
     insight_engine_factory: InsightEngineFactory = create_insight_engine,
+    presentation_service_factory: PresentationServiceFactory = (create_presentation_service),
 ) -> FastAPI:
     resolved_settings = settings or get_settings()
 
@@ -103,6 +107,7 @@ def create_app(
             analytics_engine_factory,
             visualization_engine_factory,
             insight_engine_factory,
+            presentation_service_factory,
         ),
     )
 
@@ -125,6 +130,7 @@ def create_app(
     application.include_router(analytics_router)
     application.include_router(visualization_router)
     application.include_router(insights_router)
+    application.include_router(presentation_router)
 
     return application
 

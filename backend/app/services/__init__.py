@@ -43,6 +43,12 @@ from backend.app.services.openai_compatible_provider import (
     OpenAICompatibleProviderFactory,
     create_openai_compatible_provider,
 )
+from backend.app.services.presentation_service import (
+    AnalyticalPresentationService,
+    PresentationInputError,
+    PresentationServiceError,
+    create_presentation_service,
+)
 from backend.app.services.query_executor import (
     QueryExecutionError,
     QueryExecutionResultError,
@@ -103,6 +109,10 @@ from backend.app.services.visualization_engine import (
 )
 
 __all__ = [
+    "AnalyticalPresentationService",
+    "PresentationInputError",
+    "PresentationServiceError",
+    "create_presentation_service",
     "GroundedInsightEngine",
     "InsightEngineError",
     "InsightEngineFactory",
