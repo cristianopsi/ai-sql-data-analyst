@@ -52,6 +52,7 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = [
+    "Faker>=37,<50",
     "httpx2>=2,<3",
     "mypy>=1.15,<2",
     "pip-audit>=2.9,<3",

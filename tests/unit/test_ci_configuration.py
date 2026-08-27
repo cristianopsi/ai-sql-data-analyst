@@ -1,10 +1,12 @@
 import re
+import tomllib
 from pathlib import Path
 from typing import Any, cast
 
 import yaml
 
 _REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+_PYPROJECT_PATH = _REPOSITORY_ROOT / "pyproject.toml"
 _WORKFLOW_PATH = _REPOSITORY_ROOT / ".github" / "workflows" / "ci.yml"
 
 
@@ -97,6 +99,19 @@ def test_ci_quality_commands_are_exact() -> None:
         "tests/unit/test_ci_configuration.py"
     ) in " ".join(source.split())
     assert "python -m pytest -q" in source
+
+
+def test_ci_development_extra_includes_seed_generation_dependency() -> None:
+    with _PYPROJECT_PATH.open("rb") as stream:
+        pyproject = _as_mapping(tomllib.load(stream))
+
+    project = _as_mapping(pyproject["project"])
+    extras = _as_mapping(project["optional-dependencies"])
+    dev_dependencies = {str(value) for value in _as_list(extras["dev"])}
+    seed_dependencies = {str(value) for value in _as_list(extras["seed"])}
+
+    assert seed_dependencies == {"Faker>=37,<50"}
+    assert seed_dependencies <= dev_dependencies
 
 
 def test_ci_job_timeouts_are_bounded() -> None:
