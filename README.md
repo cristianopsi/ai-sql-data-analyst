@@ -1,5 +1,7 @@
 # AI SQL Data Analyst
 
+[![CI](https://github.com/cristianopsi/ai-sql-data-analyst/actions/workflows/ci.yml/badge.svg)](https://github.com/cristianopsi/ai-sql-data-analyst/actions/workflows/ci.yml)
+
 AI-powered analytics platform designed to transform natural-language business
 questions into secure SQL queries, deterministic analytics, grounded
 explanations, and interactive visualization specifications.
@@ -377,3 +379,93 @@ customers are also blocked.
 A gate passes only with:
 
 > Code + manual execution + real evidence + agent validation.
+
+## Architecture and operations
+
+The application follows a defense-in-depth request flow:
+
+1. a user submits a natural-language analytical question;
+2. schema intelligence and the semantic layer ground the request;
+3. the configured LLM provider proposes SQL;
+4. deterministic validation accepts only supported read-only SQL;
+5. PostgreSQL enforces a read-only role, timeout, and restricted access;
+6. Python calculates analytics and visualization specifications;
+7. grounded insights reference evidence produced by the application.
+
+Detailed component boundaries and the complete request flow are documented
+in [docs/architecture.md](docs/architecture.md). Installation, Docker
+Compose execution, environment variables, troubleshooting, and limitations
+are documented in [docs/operations.md](docs/operations.md).
+
+## Requirements and local setup
+
+Supported runtimes are **Python 3.12 and Python 3.13**. PostgreSQL and
+Docker with Docker Compose are required for the complete local stack.
+
+```bash
+cp .env.example .env
+python -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -e ".[dev]"
+```
+
+Keep `.env` local and populate its required values without committing or
+printing credentials. The repository contains only `.env.example`.
+
+## Docker Compose execution
+
+Validate the configuration before starting services:
+
+```bash
+docker compose config --quiet
+docker compose up --build -d
+docker compose ps
+```
+
+The local services are:
+
+- PostgreSQL on the loopback database port configured in `.env`;
+- FastAPI at `http://127.0.0.1:8000`;
+- Streamlit at `http://127.0.0.1:8501`.
+
+Readiness can be checked without executing an analytical query:
+
+```bash
+curl --fail http://127.0.0.1:8000/ready
+curl --fail http://127.0.0.1:8501/_stcore/health
+```
+
+The complete presentation endpoint is
+`POST /api/v1/presentations/generate`. Client-supplied SQL is not accepted
+by this public boundary.
+
+## Testing and continuous integration
+
+Run the same quality gates used by GitHub Actions:
+
+```bash
+python -m pip check
+python -m ruff check .
+python -m ruff format --check .
+python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/test_ci_configuration.py
+python -m pytest -q
+```
+
+The validated local baseline contains **499 passing tests**. The CI matrix
+covers Python 3.12 and Python 3.13. Its container job validates Compose,
+builds both images, and runs non-root smoke tests with `--network none`.
+
+## Security, limitations, and support
+
+The security model combines AST validation, allowlists, query limits,
+timeouts, a read-only database role, non-root containers, loopback port
+bindings, and controlled provider configuration. See
+[SECURITY.md](SECURITY.md) before reporting a vulnerability.
+
+Current limitations and troubleshooting procedures are maintained in
+[docs/operations.md](docs/operations.md). Contribution requirements are
+defined in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+This project is distributed under the
+[MIT License](LICENSE).
