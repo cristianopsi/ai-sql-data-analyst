@@ -50,6 +50,118 @@ services:
         max-size: 10m
         max-file: "3"
 
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    image: ai-sql-data-analyst-backend:local
+    restart: unless-stopped
+    init: true
+
+    env_file:
+      - .env
+
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: "8000"
+      DATABASE_URL: "postgresql+psycopg://${APP_DATABASE_USER:?required}:${APP_DATABASE_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-ai_sql_data_analyst}"
+      ANALYTICS_DATABASE_URL: "postgresql+psycopg://${ANALYTICS_DATABASE_USER:?required}:${ANALYTICS_DATABASE_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-ai_sql_data_analyst}"
+
+    command:
+      - uvicorn
+      - backend.app.main:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/ready", timeout=2).read()
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+    security_opt:
+      - no-new-privileges:true
+
+    stop_grace_period: 30s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: ai-sql-data-analyst-frontend:local
+    restart: unless-stopped
+    init: true
+
+    env_file:
+      - .env
+
+    environment:
+      API_BASE_URL: http://backend:8000
+      FRONTEND_HOST: 0.0.0.0
+      FRONTEND_PORT: "8501"
+
+    command:
+      - streamlit
+      - run
+      - frontend/app.py
+      - --server.address
+      - 0.0.0.0
+      - --server.port
+      - "8501"
+      - --server.headless
+      - "true"
+      - --browser.gatherUsageStats
+      - "false"
+
+    ports:
+      - "127.0.0.1:${FRONTEND_PORT:-8501}:8501"
+
+    depends_on:
+      backend:
+        condition: service_healthy
+
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen("http://127.0.0.1:8501/_stcore/health", timeout=2).read()
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+    security_opt:
+      - no-new-privileges:true
+
+    stop_grace_period: 30s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"
+
 volumes:
   postgres_data:
     labels:
