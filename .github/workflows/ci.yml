@@ -1,0 +1,131 @@
+name: ci
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version:
+          - "3.12"
+          - "3.13"
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+          cache-dependency-path: pyproject.toml
+
+      - name: Install project and development dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e ".[dev]"
+
+      - name: Run Ruff lint
+        run: python -m ruff check .
+
+      - name: Check Ruff formatting
+        run: python -m ruff format --check .
+
+      - name: Run targeted static typing
+        run: >-
+          python -m mypy
+          backend
+          frontend
+          tests/unit/test_containerization.py
+          tests/unit/test_ci_configuration.py
+
+      - name: Run test suite
+        run: python -m pytest -q
+
+  container:
+    name: Container build and smoke
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Validate Compose configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          cleanup_ci_environment() {
+            rm -f -- .env
+          }
+
+          trap cleanup_ci_environment EXIT
+          : > .env
+
+          export POSTGRES_PASSWORD="$(
+            python -c 'import secrets; print(secrets.token_urlsafe(32))'
+          )"
+
+          export APP_DATABASE_USER="ci_application"
+          export APP_DATABASE_PASSWORD="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          export ANALYTICS_DATABASE_USER="ci_analytics"
+          export ANALYTICS_DATABASE_PASSWORD="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          docker compose config --quiet
+
+      - name: Build backend image
+        run: >-
+          docker build
+          --file Dockerfile.backend
+          --tag ai-sql-data-analyst-backend:ci
+          .
+
+      - name: Build frontend image
+        run: >-
+          docker build
+          --file Dockerfile.frontend
+          --tag ai-sql-data-analyst-frontend:ci
+          .
+
+      - name: Smoke test backend image without network
+        run: >-
+          docker run
+          --rm
+          --network none
+          --entrypoint python
+          ai-sql-data-analyst-backend:ci
+          -c
+          "from backend.app.main import app; assert app is not None"
+
+      - name: Smoke test frontend image without network
+        run: >-
+          docker run
+          --rm
+          --network none
+          --entrypoint python
+          ai-sql-data-analyst-frontend:ci
+          -c
+          "from frontend.app import run_application; assert callable(run_application)"
