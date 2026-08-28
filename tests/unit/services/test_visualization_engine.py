@@ -14,12 +14,17 @@ from backend.app.schemas.analytics import (
     DeterministicAnalyticsResult,
 )
 from backend.app.schemas.visualization import (
+    MAX_BAR_CATEGORIES,
+    MAX_LINE_POINTS,
+    MAX_TABLE_ROWS,
     BarVisualizationItem,
     BarVisualizationSpec,
     DeterministicVisualizationResult,
     KPIVisualizationSpec,
     LineVisualizationPoint,
     LineVisualizationSpec,
+    TableVisualizationRow,
+    TableVisualizationSpec,
     VisualizationRequest,
 )
 from backend.app.services.visualization_engine import (
@@ -136,8 +141,9 @@ def test_visualization_contract_serializes_decimal_values() -> None:
     assert payload["visualization_status"] == "specified"
     assert payload["deterministic"] is True
     assert payload["specifications"][0]["value"] == "600.0000"
-    assert payload["specifications"][1]["items"][0]["value"] == ("300.0000")
-    assert payload["specifications"][2]["points"][1]["percentage_change"] == "100.0000"
+    assert payload["specifications"][1]["rows"][0]["value"] == "300.0000"
+    assert payload["specifications"][2]["items"][0]["value"] == "300.0000"
+    assert payload["specifications"][3]["points"][1]["percentage_change"] == "100.0000"
 
 
 def test_visualization_contract_is_immutable() -> None:
@@ -236,6 +242,27 @@ def test_bar_rejects_duplicate_labels() -> None:
         )
 
 
+def test_table_requires_contiguous_positions() -> None:
+    with pytest.raises(
+        ValidationError,
+        match="positions must be contiguous",
+    ):
+        TableVisualizationSpec(
+            spec_id="table-test",
+            title="Test",
+            metric_name="test_metric",
+            dimension_name="region",
+            unit="count",
+            rows=(
+                TableVisualizationRow(
+                    position=2,
+                    label="South",
+                    value=Decimal("1"),
+                ),
+            ),
+        )
+
+
 def test_line_requires_first_point_without_variation() -> None:
     with pytest.raises(
         ValidationError,
@@ -327,7 +354,7 @@ def test_result_requires_deterministic_chart_order() -> None:
         )
 
 
-def test_engine_maps_analytics_to_kpi_bar_and_line() -> None:
+def test_engine_maps_analytics_to_kpi_table_bar_and_line() -> None:
     analytics = build_analytics_result()
     result = DeterministicVisualizationEngine().specify(analytics)
 
@@ -338,15 +365,18 @@ def test_engine_maps_analytics_to_kpi_bar_and_line() -> None:
     assert result.source_row_count == analytics.source_row_count
     assert tuple(specification.chart_type for specification in result.specifications) == (
         "kpi",
+        "table",
         "bar",
         "line",
     )
 
     kpi = result.specifications[0]
-    bar = result.specifications[1]
-    line = result.specifications[2]
+    table = result.specifications[1]
+    bar = result.specifications[2]
+    line = result.specifications[3]
 
     assert isinstance(kpi, KPIVisualizationSpec)
+    assert isinstance(table, TableVisualizationSpec)
     assert isinstance(bar, BarVisualizationSpec)
     assert isinstance(line, LineVisualizationSpec)
 
@@ -354,6 +384,15 @@ def test_engine_maps_analytics_to_kpi_bar_and_line() -> None:
     assert kpi.metric_name == "approved_revenue"
     assert kpi.unit == "brl"
     assert kpi.value == Decimal("600.0000")
+
+    assert table.title == "Approved Revenue by Region"
+    assert table.metric_name == "approved_revenue"
+    assert table.dimension_name == "region"
+    assert tuple(row.label for row in table.rows) == (
+        "South",
+        "Southeast",
+        "North",
+    )
 
     assert bar.title == "Approved Revenue by Region"
     assert bar.metric_name == "approved_revenue"
@@ -403,11 +442,57 @@ def test_engine_resolves_metric_units_case_insensitively() -> None:
     )
 
     result = DeterministicVisualizationEngine().specify(modified)
-    bar = result.specifications[1]
+    bar = result.specifications[2]
 
     assert isinstance(bar, BarVisualizationSpec)
     assert bar.metric_name == "approved_revenue"
     assert bar.unit == "brl"
+
+
+def test_engine_applies_deterministic_collection_limits() -> None:
+    analytics = build_analytics_result()
+    ranking = analytics.rankings[0].model_copy(
+        update={
+            "items": tuple(
+                AnalyticsRankingItem(
+                    rank=position,
+                    dimension_value=f"Region {position:03d}",
+                    value=Decimal(position),
+                )
+                for position in range(1, MAX_TABLE_ROWS + 2)
+            )
+        }
+    )
+    series = analytics.series[0].model_copy(
+        update={
+            "points": tuple(
+                AnalyticsSeriesPoint(
+                    position=position,
+                    dimension_value=f"2026-{position:03d}",
+                    value=Decimal(position),
+                    previous_value=(Decimal(position - 1) if position > 1 else None),
+                    absolute_change=(Decimal("1") if position > 1 else None),
+                    percentage_change=(Decimal("1") if position > 1 else None),
+                )
+                for position in range(1, MAX_LINE_POINTS + 2)
+            )
+        }
+    )
+    oversized = analytics.model_copy(
+        update={
+            "rankings": (ranking,),
+            "series": (series,),
+        }
+    )
+
+    result = DeterministicVisualizationEngine().specify(oversized)
+    table = next(item for item in result.specifications if isinstance(item, TableVisualizationSpec))
+    bar = next(item for item in result.specifications if isinstance(item, BarVisualizationSpec))
+    line = next(item for item in result.specifications if isinstance(item, LineVisualizationSpec))
+
+    assert len(table.rows) == MAX_TABLE_ROWS
+    assert len(bar.items) == MAX_BAR_CATEGORIES
+    assert len(line.points) == MAX_LINE_POINTS
 
 
 def test_engine_rejects_unknown_metric_reference() -> None:

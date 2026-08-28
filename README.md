@@ -33,8 +33,8 @@ Implemented and manually validated:
   metadata;
 - deterministic software analytics driven by trusted PostgreSQL column metadata;
 - governed metric summaries, dimension rankings, and temporal series;
-- deterministic KPI, bar, and line visualization specifications;
-- stable chart identifiers and fixed ordering without LLM chart selection;
+- deterministic KPI, table, bar, and line visualization specifications;
+- bounded categories, rows, and points with stable ordering and identifiers;
 - grounded narrative insights supported by allowlisted internal evidence;
 - fail-closed claim validation without LLM calculation or chart selection;
 - typed environment configuration with protected secrets;
@@ -50,7 +50,7 @@ Implemented and manually validated:
 
 Still planned:
 
-- Streamlit visualization rendering, evaluation, observability, and CI/CD.
+- systematic evaluation, observability, operational hardening, and release automation.
 
 Features are marked as implemented only after code execution, real output,
 tests, and explicit validation.
@@ -65,11 +65,11 @@ tests, and explicit validation.
 Natural-language question → schema grounding → semantic context → controlled
 SQL proposal → SQLGlot AST and security validation → bounded repair → validated
 read-only SQL → least-privilege PostgreSQL execution → trusted result metadata →
-deterministic software analytics → typed KPI, bar, and line visualization
+deterministic software analytics → typed KPI, table, bar, and line visualization
 specifications → grounded narrative insights with validated evidence references.
 
-Future phases will add interactive Plotly rendering and analytical presentation
-through Streamlit.
+Streamlit renders validated table and Plotly specifications without
+recalculating metrics or accepting executable chart instructions.
 
 ## Security foundations
 
@@ -92,8 +92,8 @@ only internal analytics results and has no LLM, database, network, or rendering
 capability. Grounded insight generation accepts only internal analytics and
 visualization evidence. The LLM writes narrative but cannot calculate metrics,
 generate SQL, or select charts; software validates every claim and evidence
-reference. Future phases will add audit events and frontend visualization
-controls.
+reference. Future phases will add structured audit events and operational
+metrics.
 
 ## Current API surface
 
@@ -107,8 +107,8 @@ controls.
   read-only query;
 - `POST /api/v1/analytics/analyze` generates, executes, and deterministically
   analyzes one governed natural-language question;
-- `POST /api/v1/visualizations/specify` generates deterministic KPI, bar, and
-  line specifications for one governed natural-language question;
+- `POST /api/v1/visualizations/specify` generates deterministic KPI, table,
+  bar, and line specifications for one governed natural-language question;
 - `POST /api/v1/insights/generate` produces grounded narrative claims for one
   governed natural-language question;
 - `/docs` and `/redoc` expose interactive API documentation;
@@ -281,11 +281,13 @@ The server performs grounding, SQL generation, AST validation, bounded repair,
 read-only execution, deterministic analysis, and visualization specification in
 that order.
 
-Each governed metric summary produces one KPI specification, each categorical
-ranking produces one bar specification, and each temporal series produces one
-line specification. Metric units and fixed-scale `Decimal` values are preserved.
-Stable SHA-256 identifiers and the fixed KPI, bar, then line order make results
-reproducible.
+Each governed metric summary produces one KPI specification. Each categorical
+ranking produces a bounded table and bar specification, and each temporal
+series produces one bounded line specification. Tables are limited to 100 rows,
+bars to 20 categories, and lines to 200 points. Selection and truncation are
+deterministic, while metric units and fixed-scale `Decimal` values are
+preserved. Stable SHA-256 identifiers and the fixed KPI, table, bar, then line
+order make results reproducible.
 
 The visualization engine does not call an LLM, query the database, access the
 network, import Plotly, or render charts. Responses contain typed specifications
@@ -296,9 +298,10 @@ services. Responses disable client caching.
 
 Manual validation exercised the endpoint through a real Uvicorn HTTP server and
 the local PostgreSQL analytics role. A governed approved-revenue-by-region
-request generated and executed one schema-qualified read-only query. The KPI and
-five-item regional bar matched the database total, preserved descending ranking
-order, and left region, order, and payment counts unchanged. Runtime read-only
+request generated and executed one schema-qualified read-only query. The KPI,
+bounded regional table, and five-item regional bar matched the database total,
+preserved descending ranking order, and left region, order, and payment counts
+unchanged. Runtime read-only
 checks remained enabled, only one provider generation occurred, and a canonical
 restricted request was blocked before the provider. Graceful shutdown closed
 the provider, released port 8000, and made no external network request.
@@ -367,7 +370,7 @@ customers are also blocked.
 
 ## Quality evidence
 
-- 399 automated tests passed;
+- 504 automated tests passed;
 - branch-aware backend coverage is 90.45%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
@@ -452,7 +455,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The validated local baseline contains **499 passing tests**. The CI matrix
+The validated local baseline contains **504 passing tests**. The CI matrix
 covers Python 3.12 and Python 3.13. Its container job validates Compose,
 builds both images, and runs non-root smoke tests with `--network none`.
 

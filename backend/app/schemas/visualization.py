@@ -15,6 +15,10 @@ from pydantic import (
 
 from backend.app.schemas.semantic import MetricUnit
 
+MAX_BAR_CATEGORIES = 20
+MAX_LINE_POINTS = 200
+MAX_TABLE_ROWS = 100
+
 
 def _require_finite_decimal(
     value: Decimal,
@@ -119,7 +123,7 @@ class BarVisualizationSpec(BaseModel):
     items: tuple[
         BarVisualizationItem,
         ...,
-    ] = Field(min_length=1)
+    ] = Field(min_length=1, max_length=MAX_BAR_CATEGORIES)
 
     @model_validator(mode="after")
     def validate_items(self) -> Self:
@@ -138,6 +142,70 @@ class BarVisualizationSpec(BaseModel):
 
         if len(set(labels)) != len(labels):
             raise ValueError("Bar visualization labels must be unique")
+
+        return self
+
+
+class TableVisualizationRow(BaseModel):
+    """One bounded row derived from a deterministic ranking."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        strict=True,
+        str_strip_whitespace=True,
+    )
+
+    position: int = Field(ge=1)
+    label: str = Field(min_length=1)
+    value: Decimal
+    share_percent: Decimal | None = None
+
+    @field_validator("value", "share_percent")
+    @classmethod
+    def require_finite_numbers(
+        cls,
+        value: Decimal | None,
+    ) -> Decimal | None:
+        if value is None:
+            return None
+
+        return _require_finite_decimal(value)
+
+
+class TableVisualizationSpec(BaseModel):
+    """Deterministic bounded table specification for a ranking."""
+
+    model_config = ConfigDict(
+        frozen=True,
+        extra="forbid",
+        strict=True,
+        str_strip_whitespace=True,
+    )
+
+    spec_id: str = Field(min_length=1, max_length=100)
+    chart_type: Literal["table"] = "table"
+    title: str = Field(min_length=1, max_length=200)
+    metric_name: str = Field(min_length=1)
+    dimension_name: str = Field(min_length=1)
+    unit: MetricUnit
+    rows: tuple[TableVisualizationRow, ...] = Field(
+        min_length=1,
+        max_length=MAX_TABLE_ROWS,
+    )
+
+    @model_validator(mode="after")
+    def validate_rows(self) -> Self:
+        positions = tuple(row.position for row in self.rows)
+        expected_positions = tuple(range(1, len(self.rows) + 1))
+
+        if positions != expected_positions:
+            raise ValueError("Table visualization positions must be contiguous")
+
+        labels = tuple(row.label.casefold() for row in self.rows)
+
+        if len(set(labels)) != len(labels):
+            raise ValueError("Table visualization labels must be unique")
 
         return self
 
@@ -195,7 +263,7 @@ class LineVisualizationSpec(BaseModel):
     points: tuple[
         LineVisualizationPoint,
         ...,
-    ] = Field(min_length=1)
+    ] = Field(min_length=1, max_length=MAX_LINE_POINTS)
 
     @model_validator(mode="after")
     def validate_points(self) -> Self:
@@ -235,7 +303,7 @@ class LineVisualizationSpec(BaseModel):
 
 
 type VisualizationSpecification = Annotated[
-    (KPIVisualizationSpec | BarVisualizationSpec | LineVisualizationSpec),
+    (KPIVisualizationSpec | TableVisualizationSpec | BarVisualizationSpec | LineVisualizationSpec),
     Field(discriminator="chart_type"),
 ]
 
@@ -274,8 +342,9 @@ class DeterministicVisualizationResult(BaseModel):
 
         chart_order = {
             "kpi": 0,
-            "bar": 1,
-            "line": 2,
+            "table": 1,
+            "bar": 2,
+            "line": 3,
         }
         positions = tuple(
             chart_order[specification.chart_type] for specification in self.specifications

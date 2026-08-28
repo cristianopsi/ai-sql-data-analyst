@@ -47,7 +47,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The current validated baseline is 499 passing tests without forbidden
+The current validated baseline is 504 passing tests without forbidden
 warnings.
 
 ## Docker Compose

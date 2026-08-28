@@ -18,6 +18,7 @@ from backend.app.schemas.visualization import (
     BarVisualizationSpec,
     KPIVisualizationSpec,
     LineVisualizationSpec,
+    TableVisualizationSpec,
     VisualizationSpecification,
 )
 
@@ -69,6 +70,28 @@ def query_dataframe(
     return pd.DataFrame(
         query.rows,
         columns=list(query.columns),
+    )
+
+
+def table_dataframe(
+    specification: TableVisualizationSpec,
+) -> pd.DataFrame:
+    """Project one validated table specification without recalculation."""
+    return pd.DataFrame(
+        {
+            "position": row.position,
+            specification.dimension_name: row.label,
+            specification.metric_name: format_metric_value(
+                row.value,
+                specification.unit,
+            ),
+            "share_percent": (
+                format_metric_value(row.share_percent, "percentage")
+                if row.share_percent is not None
+                else ""
+            ),
+        }
+        for row in specification.rows
     )
 
 
@@ -254,6 +277,14 @@ def render_visualization(
         render_kpi(specification)
         return
 
+    if isinstance(specification, TableVisualizationSpec):
+        st.dataframe(
+            table_dataframe(specification),
+            width="stretch",
+            hide_index=True,
+        )
+        return
+
     if isinstance(specification, BarVisualizationSpec):
         st.plotly_chart(
             build_bar_figure(specification),
@@ -333,4 +364,5 @@ __all__ = [
     "render_kpi",
     "render_presentation",
     "render_visualization",
+    "table_dataframe",
 ]

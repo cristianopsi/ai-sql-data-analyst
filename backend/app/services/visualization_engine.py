@@ -8,12 +8,17 @@ from backend.app.schemas.analytics import (
     DeterministicAnalyticsResult,
 )
 from backend.app.schemas.visualization import (
+    MAX_BAR_CATEGORIES,
+    MAX_LINE_POINTS,
+    MAX_TABLE_ROWS,
     BarVisualizationItem,
     BarVisualizationSpec,
     DeterministicVisualizationResult,
     KPIVisualizationSpec,
     LineVisualizationPoint,
     LineVisualizationSpec,
+    TableVisualizationRow,
+    TableVisualizationSpec,
 )
 
 
@@ -107,6 +112,7 @@ class DeterministicVisualizationEngine:
             for summary in analytics.metric_summaries
         )
 
+        tables: list[TableVisualizationSpec] = []
         bars: list[BarVisualizationSpec] = []
 
         for ranking in analytics.rankings:
@@ -114,6 +120,32 @@ class DeterministicVisualizationEngine:
 
             if summary is None:
                 raise VisualizationInputError("Ranking references an unknown metric")
+
+            tables.append(
+                TableVisualizationSpec(
+                    spec_id=_specification_id(
+                        "table",
+                        summary.metric_name,
+                        ranking.dimension_name,
+                    ),
+                    title=(
+                        f"{_display_name(summary.metric_name)} by "
+                        f"{_display_name(ranking.dimension_name)}"
+                    ),
+                    metric_name=summary.metric_name,
+                    dimension_name=ranking.dimension_name,
+                    unit=summary.unit,
+                    rows=tuple(
+                        TableVisualizationRow(
+                            position=item.rank,
+                            label=item.dimension_value,
+                            value=item.value,
+                            share_percent=item.share_percent,
+                        )
+                        for item in ranking.items[:MAX_TABLE_ROWS]
+                    ),
+                )
+            )
 
             bars.append(
                 BarVisualizationSpec(
@@ -136,7 +168,7 @@ class DeterministicVisualizationEngine:
                             value=item.value,
                             share_percent=item.share_percent,
                         )
-                        for item in ranking.items
+                        for item in ranking.items[:MAX_BAR_CATEGORIES]
                     ),
                 )
             )
@@ -172,7 +204,7 @@ class DeterministicVisualizationEngine:
                             absolute_change=point.absolute_change,
                             percentage_change=point.percentage_change,
                         )
-                        for point in series.points
+                        for point in series.points[:MAX_LINE_POINTS]
                     ),
                 )
             )
@@ -186,6 +218,7 @@ class DeterministicVisualizationEngine:
                 source_row_count=analytics.source_row_count,
                 specifications=(
                     *kpis,
+                    *tables,
                     *bars,
                     *lines,
                 ),

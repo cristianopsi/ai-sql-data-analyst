@@ -371,6 +371,7 @@ def test_specify_endpoint_runs_controlled_pipeline_in_order() -> None:
     assert body["source_row_count"] == 2
     assert tuple(specification["chart_type"] for specification in body["specifications"]) == (
         "kpi",
+        "table",
         "bar",
     )
     assert "sql" not in body

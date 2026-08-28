@@ -73,9 +73,10 @@ role, statement timeout, row limits, and explicit transaction controls.
 ### Analytics and visualization
 
 Analytics are calculated by application code from query results.
-Visualization selection produces deterministic specifications. The LLM
-does not calculate authoritative metrics and does not directly construct
-executable charts.
+Visualization selection produces deterministic KPI, table, bar, and line
+specifications. Tables are limited to 100 rows, bars to 20 categories, and
+lines to 200 points. The LLM does not calculate authoritative metrics and
+does not directly construct executable charts.
 
 ### Grounded insights
 

@@ -19,6 +19,8 @@ from backend.app.schemas.visualization import (
     KPIVisualizationSpec,
     LineVisualizationPoint,
     LineVisualizationSpec,
+    TableVisualizationRow,
+    TableVisualizationSpec,
 )
 from frontend import rendering
 
@@ -84,6 +86,30 @@ def _line() -> LineVisualizationSpec:
                 previous_value=Decimal("100.00"),
                 absolute_change=Decimal("20.00"),
                 percentage_change=Decimal("20.00"),
+            ),
+        ),
+    )
+
+
+def _table() -> TableVisualizationSpec:
+    return TableVisualizationSpec(
+        spec_id="specification-table",
+        title="Approved Revenue by Region",
+        metric_name="approved_revenue",
+        dimension_name="region",
+        unit="brl",
+        rows=(
+            TableVisualizationRow(
+                position=1,
+                label="North",
+                value=Decimal("100.00"),
+                share_percent=Decimal("40.00"),
+            ),
+            TableVisualizationRow(
+                position=2,
+                label="South",
+                value=Decimal("150.00"),
+                share_percent=Decimal("60.00"),
             ),
         ),
     )
@@ -243,6 +269,36 @@ def test_query_dataframe_preserves_public_rows() -> None:
         ["North", "100.01"],
         ["South", "200.02"],
     ]
+
+
+def test_table_dataframe_preserves_bounded_validated_rows() -> None:
+    frame = rendering.table_dataframe(_table())
+
+    assert tuple(frame.columns) == (
+        "position",
+        "region",
+        "approved_revenue",
+        "share_percent",
+    )
+    assert frame.values.tolist() == [
+        [1, "North", "R$ 100,00", "40,00%"],
+        [2, "South", "R$ 150,00", "60,00%"],
+    ]
+
+
+def test_render_visualization_renders_table_safely(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    dataframe = Mock()
+    monkeypatch.setattr(rendering.st, "dataframe", dataframe)
+
+    rendering.render_visualization(_table())
+
+    dataframe.assert_called_once()
+    assert dataframe.call_args.kwargs == {
+        "width": "stretch",
+        "hide_index": True,
+    }
 
 
 def test_bar_figure_preserves_order_and_exact_hover_values() -> None:
