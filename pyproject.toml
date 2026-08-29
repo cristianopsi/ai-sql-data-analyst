@@ -71,9 +71,12 @@ seed = [
 Repository = "https://github.com/cristianopsi/ai-sql-data-analyst"
 Issues = "https://github.com/cristianopsi/ai-sql-data-analyst/issues"
 
+[project.scripts]
+ai-sql-evaluate = "backend.app.evaluation.cli:main"
+
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["backend*"]
+include = ["backend*", "frontend*"]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"
@@ -106,3 +109,5 @@ python_version = "3.12"
 strict = true
 warn_unused_configs = true
 packages = ["backend", "scripts"]
+[tool.setuptools.package-data]
+"backend.app.evaluation.data" = ["*.yaml"]

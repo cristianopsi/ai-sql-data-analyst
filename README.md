@@ -50,11 +50,6 @@ Implemented and manually validated:
 
 Still planned:
 
-- systematic evaluation, observability, operational hardening, and release automation.
-
-Features are marked as implemented only after code execution, real output,
-tests, and explicit validation.
-
 ## Core principle
 
 > The LLM proposes. The software validates. The database restricts.
@@ -368,9 +363,47 @@ Security validation proved that `email` and `document_number` cannot be read
 by the analytics role. INSERT, UPDATE, DELETE, DROP, and `SELECT *` on
 customers are also blocked.
 
+## Systematic evaluation
+
+The project includes a deterministic, versioned evaluation framework for the
+complete analytical pipeline. Its packaged reference dataset is version
+**1.1.0** and contains ten controlled cases: four valid, two ambiguous, two
+restricted, and two out-of-domain requests.
+
+The runner calculates six metrics in a fixed order:
+
+1. `grounding_accuracy`;
+2. `sql_validation_rate`;
+3. `repair_success_rate`;
+4. `unsafe_block_rate`;
+5. `calculation_consistency`;
+6. `insight_fidelity`.
+
+Each metric exposes numerator, denominator, rate, threshold, and pass/fail
+status. A zero denominator fails closed, and one failed threshold fails the
+complete report.
+
+Validate the packaged dataset offline:
+
+```bash
+.venv/bin/ai-sql-evaluate
+```
+
+This default mode does not start FastAPI, access PostgreSQL, call an LLM, or
+use the network. Real pipeline evaluation requires explicit opt-in:
+
+```bash
+.venv/bin/ai-sql-evaluate --run-runtime
+```
+
+The runtime command uses the components published by the FastAPI lifespan and
+emits a sanitized JSON report. Questions, SQL, result rows, claim text, and
+credentials remain outside the report. See
+[`docs/evaluation.md`](docs/evaluation.md) for the complete contract.
+
 ## Quality evidence
 
-- 504 automated tests passed;
+- 553 automated tests passed;
 - branch-aware backend coverage is 90.45%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
@@ -455,7 +488,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The validated local baseline contains **504 passing tests**. The CI matrix
+The validated local baseline contains **553 passing tests**. The CI matrix
 covers Python 3.12 and Python 3.13. Its container job validates Compose,
 builds both images, and runs non-root smoke tests with `--network none`.
 

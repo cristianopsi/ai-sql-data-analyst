@@ -84,6 +84,28 @@ Insight generation receives validated analytical evidence. Claims must
 reference supported evidence identifiers, while unsupported or malformed
 proposals are rejected.
 
+### Systematic evaluation
+
+`backend.app.evaluation` is an assessment boundary around the analytical
+pipeline. Immutable Pydantic contracts define reference cases, expectations,
+applicable metrics, thresholds, sanitized observations, and aggregate reports.
+
+The versioned YAML dataset is loaded through `importlib.resources` and
+validated before execution. `EvaluationRunner` receives an injected case
+executor and aggregates `grounding_accuracy`, `sql_validation_rate`,
+`repair_success_rate`, `unsafe_block_rate`, `calculation_consistency`, and
+`insight_fidelity` in a deterministic order.
+
+`RealPipelineEvaluationAdapter` orchestrates grounding, SQL generation and
+repair, execution, analytics, visualization, and grounded insights. Ambiguous,
+restricted, and out-of-domain requests stop before SQL generation. Runtime
+execution is never implicit; `--run-runtime` is required before the FastAPI
+lifespan, database-backed executor, or LLM provider can be used.
+
+Reports contain identifiers, categories, dispositions, metric observations,
+rates, thresholds, and final status. Questions, SQL text, rows, claim text,
+provider payloads, environment values, and credentials are excluded.
+
 ## Container topology
 
 Docker Compose defines exactly three services:

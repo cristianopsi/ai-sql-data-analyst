@@ -47,8 +47,56 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The current validated baseline is 504 passing tests without forbidden
+The current validated baseline is 553 passing tests without forbidden
 warnings.
+
+## Systematic evaluation
+
+Validate the packaged reference dataset without starting application services:
+
+```bash
+.venv/bin/ai-sql-evaluate
+```
+
+Equivalent module invocation:
+
+```bash
+.venv/bin/python -m backend.app.evaluation.cli
+```
+
+Offline mode validates dataset version `1.1.0`, ten unique cases, all four
+categories, semantic and SQL expectations, six metrics, and minimum
+thresholds. It does not start FastAPI, access PostgreSQL, call an LLM, or use
+an external network.
+
+Run the real component chain only through the explicit flag:
+
+```bash
+.venv/bin/ai-sql-evaluate --run-runtime
+```
+
+Runtime mode starts the FastAPI lifespan and injects the configured SQL
+generation pipeline, query executor, analytics engine, visualization engine,
+and insight engine into the adapter.
+
+The command prints sanitized JSON. Exit code `0` means validation succeeded or
+all runtime thresholds passed. Exit code `1` means a report was produced but a
+threshold failed. Exit code `2` means a controlled loading, startup,
+component-resolution, or execution failure occurred.
+
+Run the 49 focused evaluation tests:
+
+```bash
+.venv/bin/pytest -q tests/unit/evaluation
+```
+
+The complete validated baseline contains 553 passing tests:
+
+```bash
+.venv/bin/pytest -q
+```
+
+See `docs/evaluation.md` for the complete operational and privacy contract.
 
 ## Docker Compose
 
