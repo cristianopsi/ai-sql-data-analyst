@@ -196,3 +196,124 @@ overrides before starting Compose.
 - Query limits and timeouts intentionally reject some expensive requests.
 - CI builds images but does not publish them to a registry.
 - The workflow does not call an external LLM.
+
+## Database provisioning and migrations
+
+A new PostgreSQL volume initially contains only the administrative database and
+role created by the official PostgreSQL image. The application role, analytics
+role, retail schema, migrations, and least-privilege grants are provisioned
+explicitly. Do not start the backend against a new database volume before
+completing this sequence.
+
+Keep the real `.env` outside version control and restrict its filesystem
+permissions. Never print or commit database URLs, passwords, API keys, or other
+credential values.
+
+Use this order for a new database volume:
+
+1. Start PostgreSQL and wait for its health check.
+2. Bootstrap the application and analytics database roles.
+3. Apply the Alembic migrations with `upgrade head`.
+4. Apply the retail schema grants.
+5. Optionally load the deterministic demonstration dataset.
+6. Start the backend and frontend.
+7. Verify the application health and readiness endpoints.
+
+The operational scripts read `/app/.env`. Mount the existing project `.env`
+read-only into transient backend containers with a temporary Compose override
+stored outside the repository:
+
+```bash
+PROVISION_OVERRIDE="/tmp/ai-sql-provision.override.yaml"
+
+cat > "${PROVISION_OVERRIDE}" <<'YAML'
+services:
+  backend:
+    volumes:
+      - type: bind
+        source: ./.env
+        target: /app/.env
+        read_only: true
+YAML
+
+chmod 600 "${PROVISION_OVERRIDE}"
+```
+
+Validate the resolved configuration without printing environment values:
+
+```bash
+docker compose \
+  -f compose.yaml \
+  -f "${PROVISION_OVERRIDE}" \
+  config --quiet
+```
+
+Start only PostgreSQL and wait until it is healthy:
+
+```bash
+docker compose up -d --wait postgres
+```
+
+Bootstrap the two least-privilege database roles:
+
+```bash
+docker compose \
+  -f compose.yaml \
+  -f "${PROVISION_OVERRIDE}" \
+  run --rm --no-deps backend \
+  python scripts/bootstrap_database_roles.py
+```
+
+Apply all Alembic migration revisions:
+
+```bash
+docker compose \
+  -f compose.yaml \
+  -f "${PROVISION_OVERRIDE}" \
+  run --rm --no-deps backend \
+  python -m alembic upgrade head
+```
+
+Apply the retail grants after the schema exists:
+
+```bash
+docker compose \
+  -f compose.yaml \
+  -f "${PROVISION_OVERRIDE}" \
+  run --rm --no-deps backend \
+  python scripts/apply_database_grants.py
+```
+
+Loading the deterministic demonstration dataset is optional and is not required
+for the health endpoints:
+
+```bash
+docker compose \
+  -f compose.yaml \
+  -f "${PROVISION_OVERRIDE}" \
+  run --rm --no-deps backend \
+  python scripts/seed_database.py
+```
+
+After roles, migrations, and grants succeed, start the application services:
+
+```bash
+docker compose up -d --wait backend frontend
+```
+
+Verify the backend health and readiness endpoints and the Streamlit health
+endpoint through the loopback ports configured in `.env`. Diagnostic output
+must not include database URLs, passwords, API keys, response headers, complete
+environment values, or container identifiers.
+
+Remove the temporary override only after the transient provisioning containers
+have exited:
+
+```bash
+rm -f -- "${PROVISION_OVERRIDE}"
+```
+
+Run `python -m alembic upgrade head` whenever a deployment introduces new
+migration revisions. Role bootstrap and grant application remain controlled
+operational steps and must finish before starting a backend that depends on the
+new roles, schema, or privileges.
