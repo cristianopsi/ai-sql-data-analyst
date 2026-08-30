@@ -105,6 +105,7 @@ def test_unsupported_question_returns_422(
     "question",
     [
         "   ",
+        "!!!",
         "x" * 101,
     ],
 )

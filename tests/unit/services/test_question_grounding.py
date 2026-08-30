@@ -110,6 +110,11 @@ def test_unsupported_question_has_no_schema_context() -> None:
             "cannot be empty",
         ),
         (
+            "!!!",
+            2_000,
+            "must contain letters or numbers",
+        ),
+        (
             "pergunta muito longa",
             5,
             "exceeds maximum length",

@@ -441,6 +441,12 @@ def ground_question(
         raise QuestionGroundingError("Question exceeds maximum length")
 
     normalized_question = normalize_question(stripped_question)
+
+    if not normalized_question:
+        raise QuestionGroundingError(
+            "Question must contain letters or numbers"
+        )
+
     layer = semantic_layer if semantic_layer is not None else build_semantic_layer()
 
     if any(
