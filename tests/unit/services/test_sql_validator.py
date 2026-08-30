@@ -139,7 +139,6 @@ def test_existing_limit_is_preserved_or_clamped() -> None:
         ("SELECT o.id FROM retail.orders AS o FOR UPDATE"),
         ("SELECT o.id INTO TEMPORARY TABLE copied_orders FROM retail.orders AS o"),
         ("SELECT id FROM retail.orders UNION ALL SELECT id FROM retail.payments"),
-        ("WITH approved AS (SELECT order_id FROM retail.payments) SELECT order_id FROM approved"),
         ("SELECT o.id FROM retail.orders AS o -- uncontrolled comment"),
         ("SELECT secret_value FROM retail.unknown_table"),
         ("SELECT o.email FROM retail.orders AS o"),

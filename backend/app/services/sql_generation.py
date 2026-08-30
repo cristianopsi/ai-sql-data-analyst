@@ -89,6 +89,7 @@ class SQLGenerationPipeline:
     ) -> SQLGenerationResult:
         context = self._context_builder.build(question)
         proposal = self._proposal_generator.propose_from_context(context)
+        seen_rejected_sql: set[str] = set()
         generation_attempts = 1
         repair_attempts = 0
 
@@ -106,17 +107,26 @@ class SQLGenerationPipeline:
                     repair_attempts=(repair_attempts),
                 )
             except SQLValidationError:
+                seen_rejected_sql.add(proposal.sql)
+
                 if repair_attempts >= self._max_repair_attempts:
                     raise SQLGenerationExhaustedError(
                         "SQL proposal could not be validated"
                     ) from None
 
-                proposal = self._proposal_generator.repair(
+                repaired_proposal = self._proposal_generator.repair(
                     context,
                     proposal,
                 )
                 repair_attempts += 1
                 generation_attempts += 1
+
+                if repaired_proposal.sql in seen_rejected_sql:
+                    raise SQLGenerationExhaustedError(
+                        "SQL proposal could not be validated"
+                    ) from None
+
+                proposal = repaired_proposal
 
 
 type SQLGenerationPipelineFactory = Callable[

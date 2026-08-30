@@ -163,11 +163,13 @@ def test_invalid_proposal_is_repaired() -> None:
 
 
 def test_repair_budget_exhaustion_is_sanitized() -> None:
-    rejected_sql = "SELECT * FROM retail.orders"
+    rejected_sqls = (
+        "SELECT * FROM retail.orders",
+        "DELETE FROM retail.orders",
+        "DROP TABLE retail.orders",
+    )
     pipeline, provider, _ = build_pipeline(
-        [
-            payload(rejected_sql),
-        ],
+        [payload(rejected_sql) for rejected_sql in rejected_sqls],
         max_repair_attempts=2,
     )
 
@@ -177,7 +179,7 @@ def test_repair_budget_exhaustion_is_sanitized() -> None:
     ) as captured:
         pipeline.generate("Faturamento por região em 2025")
 
-    assert rejected_sql not in str(captured.value)
+    assert all(rejected_sql not in str(captured.value) for rejected_sql in rejected_sqls)
     assert provider.generation_count == 3
 
     provider.close()
@@ -267,6 +269,6 @@ def test_generation_result_is_immutable() -> None:
     )
 
     with pytest.raises(ValidationError):
-        result.repair_attempts = 99  # type: ignore[misc]
+        result.repair_attempts = 99
 
     provider.close()

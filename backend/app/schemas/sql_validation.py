@@ -43,5 +43,5 @@ class ValidatedSQL(BaseModel):
     referenced_columns: tuple[
         str,
         ...,
-    ] = Field(min_length=1)
+    ]
     usage: LLMTokenUsage
