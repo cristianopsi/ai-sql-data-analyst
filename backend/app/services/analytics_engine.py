@@ -1,10 +1,12 @@
 from collections.abc import Callable
+from datetime import UTC, date, datetime
 from decimal import (
     ROUND_HALF_EVEN,
     Decimal,
     DecimalException,
     localcontext,
 )
+from re import fullmatch
 from typing import Never
 
 from pydantic import ValidationError
@@ -106,7 +108,7 @@ def _parse_numeric_value(
     if not parsed.is_finite():
         _reject()
 
-    return _quantize(parsed)
+    return parsed
 
 
 def _dimension_label(
@@ -145,6 +147,205 @@ def _dimension_label(
         return str(value)
 
     _reject()
+
+
+def _calendar_granularity(
+    value: date,
+    dimension: SemanticDimension,
+) -> str:
+    granularities = dimension.time_granularities
+
+    if "day" in granularities:
+        return "day"
+
+    if "month" in granularities and value.day == 1:
+        return "month"
+
+    if (
+        "quarter" in granularities
+        and value.day == 1
+        and value.month
+        in {
+            1,
+            4,
+            7,
+            10,
+        }
+    ):
+        return "quarter"
+
+    if "year" in granularities and value.month == 1 and value.day == 1:
+        return "year"
+
+    _reject()
+
+
+def _temporal_sort_key(
+    label: str,
+    dimension: SemanticDimension,
+) -> tuple[
+    str,
+    tuple[
+        int,
+        int,
+        int,
+        int,
+        int,
+        int,
+        int,
+    ],
+]:
+    if not dimension.time_granularities:
+        _reject()
+
+    year_match = fullmatch(
+        r"(\d{4})",
+        label,
+    )
+
+    if year_match is not None and "year" in dimension.time_granularities:
+        year = int(year_match.group(1))
+
+        if not 1 <= year <= 9999:
+            _reject()
+
+        return (
+            "year",
+            (
+                year,
+                1,
+                1,
+                0,
+                0,
+                0,
+                0,
+            ),
+        )
+
+    month_match = fullmatch(
+        r"(\d{4})-(\d{2})",
+        label,
+    )
+
+    if month_match is not None and "month" in dimension.time_granularities:
+        year = int(month_match.group(1))
+        month = int(month_match.group(2))
+
+        try:
+            month_start = date(
+                year,
+                month,
+                1,
+            )
+        except ValueError:
+            _reject()
+
+        return (
+            "month",
+            (
+                month_start.year,
+                month_start.month,
+                1,
+                0,
+                0,
+                0,
+                0,
+            ),
+        )
+
+    quarter_match = fullmatch(
+        r"(\d{4})-Q([1-4])",
+        label,
+    )
+
+    if quarter_match is not None and "quarter" in dimension.time_granularities:
+        year = int(quarter_match.group(1))
+        quarter = int(quarter_match.group(2))
+        month = (quarter - 1) * 3 + 1
+
+        try:
+            quarter_start = date(
+                year,
+                month,
+                1,
+            )
+        except ValueError:
+            _reject()
+
+        return (
+            "quarter",
+            (
+                quarter_start.year,
+                quarter_start.month,
+                1,
+                0,
+                0,
+                0,
+                0,
+            ),
+        )
+
+    try:
+        parsed_date = date.fromisoformat(label)
+    except ValueError:
+        parsed_date = None
+
+    if parsed_date is not None:
+        granularity = _calendar_granularity(
+            parsed_date,
+            dimension,
+        )
+
+        return (
+            granularity,
+            (
+                parsed_date.year,
+                parsed_date.month,
+                parsed_date.day,
+                0,
+                0,
+                0,
+                0,
+            ),
+        )
+
+    try:
+        parsed_datetime = datetime.fromisoformat(label)
+    except ValueError:
+        _reject()
+
+    if parsed_datetime.utcoffset() is not None:
+        parsed_datetime = parsed_datetime.astimezone(UTC).replace(
+            tzinfo=None,
+        )
+
+    granularity = _calendar_granularity(
+        parsed_datetime.date(),
+        dimension,
+    )
+
+    if granularity != "day" and any(
+        (
+            parsed_datetime.hour,
+            parsed_datetime.minute,
+            parsed_datetime.second,
+            parsed_datetime.microsecond,
+        )
+    ):
+        _reject()
+
+    return (
+        granularity,
+        (
+            parsed_datetime.year,
+            parsed_datetime.month,
+            parsed_datetime.day,
+            parsed_datetime.hour,
+            parsed_datetime.minute,
+            parsed_datetime.second,
+            parsed_datetime.microsecond,
+        ),
+    )
 
 
 def _column_indexes(
@@ -218,6 +419,7 @@ def _build_summary(
 
     return AnalyticsMetricSummary(
         metric_name=metric.name,
+        aggregation=metric.aggregation,
         unit=metric.unit,
         value_count=len(values),
         total=_quantize(total),
@@ -230,6 +432,7 @@ def _build_summary(
 def _dimension_rows(
     execution: QueryExecutionResult,
     *,
+    dimension: SemanticDimension,
     dimension_index: int,
     metric_index: int,
 ) -> tuple[
@@ -239,7 +442,15 @@ def _dimension_rows(
     ],
     ...,
 ]:
+    dimension_metadata = execution.internal_column_metadata[dimension_index]
     metric_metadata = execution.internal_column_metadata[metric_index]
+
+    if dimension.kind == "temporal" and dimension_metadata.value_kind not in {
+        "date",
+        "datetime",
+        "text",
+    }:
+        _reject()
 
     rows = tuple(
         (
@@ -251,6 +462,18 @@ def _dimension_rows(
         )
         for row in execution.rows
     )
+
+    if dimension.kind == "temporal":
+        granularities = tuple(
+            _temporal_sort_key(
+                label,
+                dimension,
+            )[0]
+            for label, _ in rows
+        )
+
+        if len(set(granularities)) != 1:
+            _reject()
 
     dimension_keys = tuple(label.casefold() for label, _ in rows)
 
@@ -288,9 +511,10 @@ def _build_ranking(
         ...,
     ],
 ) -> AnalyticsRanking:
+    normalized_rows = tuple((label, _quantize(value)) for label, value in rows)
     ordered_rows = tuple(
         sorted(
-            rows,
+            normalized_rows,
             key=lambda item: (
                 -item[1],
                 item[0].casefold(),
@@ -299,7 +523,7 @@ def _build_ranking(
         )
     )
     total = sum(
-        (value for _, value in rows),
+        (value for _, value in normalized_rows),
         Decimal("0"),
     )
 
@@ -346,6 +570,20 @@ def _percentage_change(
     return _quantize(percentage)
 
 
+def _absolute_change(
+    current: Decimal,
+    previous: Decimal,
+) -> Decimal:
+    try:
+        with localcontext() as decimal_context:
+            decimal_context.prec = DECIMAL_PRECISION
+            difference = current - previous
+    except DecimalException:
+        _reject()
+
+    return _quantize(difference)
+
+
 def _build_series(
     metric: SemanticMetric,
     dimension: SemanticDimension,
@@ -357,10 +595,14 @@ def _build_series(
         ...,
     ],
 ) -> AnalyticsSeries:
+    normalized_rows = tuple((label, _quantize(value)) for label, value in rows)
     ordered_rows = tuple(
         sorted(
-            rows,
-            key=lambda item: (item[0],),
+            normalized_rows,
+            key=lambda item: _temporal_sort_key(
+                item[0],
+                dimension,
+            )[1],
         )
     )
     points: list[AnalyticsSeriesPoint] = []
@@ -385,7 +627,10 @@ def _build_series(
                 dimension_value=label,
                 value=value,
                 previous_value=previous,
-                absolute_change=_quantize(value - previous),
+                absolute_change=_absolute_change(
+                    value,
+                    previous,
+                ),
                 percentage_change=_percentage_change(
                     value,
                     previous,
@@ -407,12 +652,16 @@ def analyze_query_result(
     context: CompactGroundingContext,
 ) -> DeterministicAnalyticsResult:
     """Calculate summaries, rankings, and series without an LLM."""
+    validated_sql = execution.generation.validated_sql
+
     if (
         execution.execution_status != "executed"
         or context.grounding_status != "grounded"
         or execution.row_count < 1
         or not context.metrics
         or len(context.dimensions) > 1
+        or validated_sql.semantic_version != context.semantic_version
+        or validated_sql.catalog_version != context.catalog_version
     ):
         _reject()
 
@@ -451,6 +700,7 @@ def analyze_query_result(
         if dimension is not None and dimension_index is not None:
             rows = _dimension_rows(
                 execution,
+                dimension=dimension,
                 dimension_index=dimension_index,
                 metric_index=metric_index,
             )
@@ -474,8 +724,8 @@ def analyze_query_result(
     try:
         return DeterministicAnalyticsResult(
             execution_version=(execution.execution_version),
-            semantic_version=(execution.generation.validated_sql.semantic_version),
-            catalog_version=(execution.generation.validated_sql.catalog_version),
+            semantic_version=validated_sql.semantic_version,
+            catalog_version=validated_sql.catalog_version,
             source_row_count=execution.row_count,
             metric_summaries=tuple(summaries),
             rankings=tuple(rankings),

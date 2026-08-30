@@ -104,7 +104,7 @@ class DeterministicVisualizationEngine:
                 metric_name=summary.metric_name,
                 unit=summary.unit,
                 value_count=summary.value_count,
-                value=summary.total,
+                value=summary.primary_value,
                 average=summary.average,
                 minimum=summary.minimum,
                 maximum=summary.maximum,

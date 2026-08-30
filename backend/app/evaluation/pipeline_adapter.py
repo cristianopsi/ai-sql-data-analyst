@@ -350,7 +350,7 @@ class RealPipelineEvaluationAdapter:
                 summary = summaries[specification.metric_name]
 
                 if (
-                    specification.value != summary.total
+                    specification.value != summary.primary_value
                     or specification.average != summary.average
                     or specification.minimum != summary.minimum
                     or specification.maximum != summary.maximum

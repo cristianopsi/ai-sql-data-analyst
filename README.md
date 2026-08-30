@@ -251,9 +251,18 @@ Clients cannot submit raw SQL, result rows, or previously generated execution
 objects. The server performs grounding, generation, AST validation, bounded
 repair, read-only execution, and deterministic analysis in that order.
 
-The engine uses typed result metadata and fixed-scale `Decimal` arithmetic.
-It calculates metric totals, averages, minima, and maxima; dimension rankings
-and shares; and ordered temporal series with absolute and percentage changes.
+The engine uses trusted typed result metadata and verifies that execution,
+semantic-context, and catalog versions match before calculation. Numeric source
+values retain exact `Decimal` precision through aggregation and are quantized to
+the public four-decimal scale only at controlled contract boundaries. Governed
+metric aggregation selects the primary value used by downstream visualization
+and evaluation.
+
+Temporal labels are parsed under their declared day, month, quarter, or year
+granularity and ordered chronologically. Metric summaries, ranking shares,
+series variations, deterministic ordering, and source-row counts are
+cross-validated by immutable result contracts. Any provenance, temporal,
+numeric, or arithmetic inconsistency fails closed.
 Numeric-looking strings are never guessed as numbers. Missing or unknown
 metadata, non-finite values, inconsistent results, and unsupported analytical
 shapes fail closed.
@@ -413,8 +422,8 @@ credentials remain outside the report. See
 
 ## Quality evidence
 
-- 636 automated tests passed;
-- branch-aware backend coverage is 88.66%;
+- 659 automated tests passed;
+- branch-aware backend coverage is 88.06%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;
@@ -498,7 +507,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The validated local baseline contains **636 passing tests**. The CI matrix
+The validated local baseline contains **659 passing tests**. The CI matrix
 covers Python 3.12 and Python 3.13. Its container job validates Compose,
 builds both images, and runs non-root smoke tests with `--network none`.
 

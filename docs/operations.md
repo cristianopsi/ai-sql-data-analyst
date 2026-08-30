@@ -47,7 +47,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The current validated baseline is 636 passing tests without forbidden
+The current validated baseline is 659 passing tests without forbidden
 warnings.
 
 ## Systematic evaluation
@@ -90,7 +90,7 @@ Run the 49 focused evaluation tests:
 .venv/bin/pytest -q tests/unit/evaluation
 ```
 
-The complete validated baseline contains 636 passing tests:
+The complete validated baseline contains 659 passing tests:
 
 ```bash
 .venv/bin/pytest -q
@@ -157,6 +157,13 @@ before executing generated SQL. Pool acquisition uses a separate configured
 timeout. Result retrieval uses a bounded `fetchmany` batch of the validated row
 limit plus one. Result normalization and contract validation finish inside the
 transaction; invariant failures roll back and expose only sanitized responses.
+
+Deterministic analytics verifies semantic and catalog provenance before
+calculation. Source numeric precision is retained through aggregation, while
+public results use a controlled four-decimal scale. Governed aggregation
+determines the downstream primary metric value. Temporal dimensions are parsed
+and chronologically ordered under their declared granularities. Summary,
+ranking, series, and source-row arithmetic invariants fail closed.
 
 ## Troubleshooting
 
