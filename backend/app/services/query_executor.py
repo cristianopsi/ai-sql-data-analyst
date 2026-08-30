@@ -181,23 +181,43 @@ class QueryExecutor:
         ],
         *,
         statement_timeout_ms: int,
+        lock_timeout_ms: int,
+        idle_in_transaction_session_timeout_ms: int,
         query_timeout_seconds: float,
         clock: Callable[[], float] = perf_counter,
     ) -> None:
         if not 100 <= statement_timeout_ms <= 300_000:
             raise ValueError("statement_timeout_ms must be between 100 and 300000")
 
+        if not 1 <= lock_timeout_ms <= 300_000:
+            raise ValueError("lock_timeout_ms must be between 1 and 300000")
+
+        if not 100 <= idle_in_transaction_session_timeout_ms <= 3_600_000:
+            raise ValueError(
+                "idle_in_transaction_session_timeout_ms must be between 100 and 3600000"
+            )
+
         if not 0.0 < query_timeout_seconds <= 300.0:
             raise ValueError("query_timeout_seconds must be between 0 and 300")
 
         self._analytics_pool_provider = analytics_pool_provider
         self._statement_timeout_ms = statement_timeout_ms
+        self._lock_timeout_ms = lock_timeout_ms
+        self._idle_in_transaction_session_timeout_ms = idle_in_transaction_session_timeout_ms
         self._query_timeout_seconds = query_timeout_seconds
         self._clock = clock
 
     @property
     def statement_timeout_ms(self) -> int:
         return self._statement_timeout_ms
+
+    @property
+    def lock_timeout_ms(self) -> int:
+        return self._lock_timeout_ms
+
+    @property
+    def idle_in_transaction_session_timeout_ms(self) -> int:
+        return self._idle_in_transaction_session_timeout_ms
 
     @property
     def query_timeout_seconds(self) -> float:
@@ -222,14 +242,44 @@ class QueryExecutor:
             ):
                 cursor.execute("SET TRANSACTION READ ONLY")
                 cursor.execute(
-                    ("SELECT set_config('statement_timeout', %s, true)"),
-                    (f"{self._statement_timeout_ms}ms",),
+                    (
+                        "SELECT "
+                        "set_config('statement_timeout', %s, true), "
+                        "set_config('lock_timeout', %s, true), "
+                        "set_config('idle_in_transaction_session_timeout', %s, true)"
+                    ),
+                    (
+                        f"{self._statement_timeout_ms}ms",
+                        f"{self._lock_timeout_ms}ms",
+                        f"{self._idle_in_transaction_session_timeout_ms}ms",
+                    ),
                 )
-                cursor.execute("SELECT current_setting('transaction_read_only')")
-                read_only_row = cursor.fetchone()
+                configured_timeout_row = cursor.fetchone()
 
-                if read_only_row is None or str(read_only_row[0]) != "on":
+                if configured_timeout_row is None or len(configured_timeout_row) != 3:
+                    raise QueryExecutionSecurityError("Analytics timeout settings are unavailable")
+
+                configured_timeouts = tuple(str(value) for value in configured_timeout_row)
+
+                cursor.execute(
+                    "SELECT "
+                    "current_setting('transaction_read_only'), "
+                    "current_setting('statement_timeout'), "
+                    "current_setting('lock_timeout'), "
+                    "current_setting('idle_in_transaction_session_timeout')"
+                )
+                security_setting_row = cursor.fetchone()
+
+                if security_setting_row is None or len(security_setting_row) != 4:
+                    raise QueryExecutionSecurityError("Analytics security settings are unavailable")
+
+                active_security_settings = tuple(str(value) for value in security_setting_row)
+
+                if active_security_settings[0] != "on":
                     raise QueryExecutionSecurityError("Analytics transaction is not read-only")
+
+                if active_security_settings[1:] != configured_timeouts:
+                    raise QueryExecutionSecurityError("Analytics timeout settings are not active")
 
                 cursor.execute(generation.validated_sql.sql)
                 description = cursor.description
@@ -244,31 +294,35 @@ class QueryExecutor:
                     for column in description
                 )
                 columns = tuple(metadata.name for metadata in column_metadata)
-                raw_rows = cursor.fetchall()
+                row_limit = generation.validated_sql.row_limit
+                raw_rows = cursor.fetchmany(row_limit + 1)
 
-            rows: tuple[QueryResultRow, ...] = tuple(
-                tuple(normalize_query_value(value) for value in raw_row) for raw_row in raw_rows
-            )
-            execution_time_ms = max(
-                0.0,
-                (self._clock() - started_at) * 1000.0,
-            )
+                if len(raw_rows) > row_limit:
+                    raise QueryExecutionResultError("Query result exceeds the validated row limit")
 
-            try:
-                return QueryExecutionResult(
-                    generation=generation,
-                    columns=columns,
-                    internal_column_metadata=column_metadata,
-                    rows=rows,
-                    row_count=len(rows),
-                    statement_timeout_ms=(self._statement_timeout_ms),
-                    query_timeout_seconds=(self._query_timeout_seconds),
-                    execution_time_ms=execution_time_ms,
+                rows: tuple[QueryResultRow, ...] = tuple(
+                    tuple(normalize_query_value(value) for value in raw_row) for raw_row in raw_rows
                 )
-            except ValidationError:
-                raise QueryExecutionResultError(
-                    "Query result failed controlled validation"
-                ) from None
+                execution_time_ms = max(
+                    0.0,
+                    (self._clock() - started_at) * 1000.0,
+                )
+
+                try:
+                    return QueryExecutionResult(
+                        generation=generation,
+                        columns=columns,
+                        internal_column_metadata=column_metadata,
+                        rows=rows,
+                        row_count=len(rows),
+                        statement_timeout_ms=(self._statement_timeout_ms),
+                        query_timeout_seconds=(self._query_timeout_seconds),
+                        execution_time_ms=execution_time_ms,
+                    )
+                except ValidationError:
+                    raise QueryExecutionResultError(
+                        "Query result failed controlled validation"
+                    ) from None
         except QueryExecutionError:
             raise
         except Exception as error:
@@ -296,5 +350,7 @@ def create_query_executor(
     return QueryExecutor(
         provide_analytics_pool,
         statement_timeout_ms=(settings.statement_timeout_ms),
+        lock_timeout_ms=(settings.lock_timeout_ms),
+        idle_in_transaction_session_timeout_ms=(settings.idle_in_transaction_session_timeout_ms),
         query_timeout_seconds=(settings.query_timeout_seconds),
     )

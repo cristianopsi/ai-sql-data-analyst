@@ -50,6 +50,8 @@ def test_lifespan_publishes_query_executor_lazily() -> None:
             llm_provider="mock",
             llm_model="executor-lifespan-model",
             statement_timeout_ms=4321,
+            lock_timeout_ms=1234,
+            idle_in_transaction_session_timeout_ms=23456,
             query_timeout_seconds=7.5,
         ),
         pool_factory=pool_factory,
@@ -64,6 +66,8 @@ def test_lifespan_publishes_query_executor_lazily() -> None:
             QueryExecutor,
         )
         assert executor.statement_timeout_ms == 4321
+        assert executor.lock_timeout_ms == 1234
+        assert executor.idle_in_transaction_session_timeout_ms == 23456
         assert executor.query_timeout_seconds == 7.5
         assert pools.opened is True
         assert application.state.database_ready is True

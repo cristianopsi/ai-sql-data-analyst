@@ -210,16 +210,21 @@ server internally performs grounding, proposal generation, AST validation,
 bounded repair, and execution in that order.
 
 The executor runs exactly the SQL returned by the validator and uses only the
-least-privilege analytics pool. Every execution explicitly issues
-`SET TRANSACTION READ ONLY`, applies the configured PostgreSQL statement
-timeout, verifies `transaction_read_only` at runtime, and uses the configured
-pool acquisition timeout. Failure of any invariant returns a sanitized
-response.
+least-privilege analytics pool. Every execution explicitly enters a read-only
+transaction and applies transaction-local PostgreSQL statement, lock, and
+idle-in-transaction session timeouts. Before generated SQL runs, the executor
+confirms `transaction_read_only` and verifies all three active timeout values.
+Pool acquisition uses a separately configured timeout. Failure of any invariant
+returns a sanitized response.
 
-Database values are normalized into strict JSON-safe primitives. Finite decimal
-values, dates, times, and UUIDs receive deterministic string representations.
-Duplicate or empty columns, inconsistent row widths, unsupported values,
-non-finite numbers, and results above the validated row limit fail closed.
+Rows are read with `fetchmany` in a batch capped at the validated row limit plus
+one, allowing overflow to fail closed without an unbounded `fetchall`. Database
+values are normalized into strict JSON-safe primitives. Finite decimal values,
+dates, times, and UUIDs receive deterministic string representations. Duplicate
+or empty columns, inconsistent row widths, unsupported or non-finite values,
+and results above the validated row limit fail closed. Normalization and
+complete result-contract validation occur inside the transaction, so failures
+roll back before any result is returned.
 
 The query-execution endpoint returns HTTP 200 for an executed result, HTTP 422
 for invalid questions or unsafe generation and execution, and HTTP 503 for
@@ -408,8 +413,8 @@ credentials remain outside the report. See
 
 ## Quality evidence
 
-- 612 automated tests passed;
-- branch-aware backend coverage is 90.45%;
+- 636 automated tests passed;
+- branch-aware backend coverage is 88.66%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;
@@ -493,7 +498,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The validated local baseline contains **612 passing tests**. The CI matrix
+The validated local baseline contains **636 passing tests**. The CI matrix
 covers Python 3.12 and Python 3.13. Its container job validates Compose,
 builds both images, and runs non-root smoke tests with `--network none`.
 

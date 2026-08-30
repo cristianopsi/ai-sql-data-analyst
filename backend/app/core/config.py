@@ -72,6 +72,12 @@ class Settings(BaseSettings):
 
     query_timeout_seconds: float = Field(default=10.0, gt=0.0, le=300.0)
     statement_timeout_ms: int = Field(default=8000, ge=100, le=300000)
+    lock_timeout_ms: int = Field(default=2000, ge=1, le=300000)
+    idle_in_transaction_session_timeout_ms: int = Field(
+        default=30000,
+        ge=100,
+        le=3600000,
+    )
     max_result_rows: int = Field(default=1000, ge=1, le=10000)
     max_sql_repair_attempts: int = Field(default=2, ge=0, le=5)
     max_question_length: int = Field(default=2000, ge=1, le=10000)

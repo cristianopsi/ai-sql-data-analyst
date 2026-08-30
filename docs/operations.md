@@ -47,7 +47,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The current validated baseline is 612 passing tests without forbidden
+The current validated baseline is 636 passing tests without forbidden
 warnings.
 
 ## Systematic evaluation
@@ -90,7 +90,7 @@ Run the 49 focused evaluation tests:
 .venv/bin/pytest -q tests/unit/evaluation
 ```
 
-The complete validated baseline contains 612 passing tests:
+The complete validated baseline contains 636 passing tests:
 
 ```bash
 .venv/bin/pytest -q
@@ -149,6 +149,14 @@ POST /api/v1/presentations/generate
 Its public request contains a natural-language question. Client-supplied
 SQL is rejected. Generated SQL remains subject to deterministic validation
 and read-only database controls.
+
+The executor uses only the analytics pool. Each query starts a read-only
+transaction, applies and verifies transaction-local statement, lock, and
+idle-in-transaction session timeouts, and verifies the active read-only mode
+before executing generated SQL. Pool acquisition uses a separate configured
+timeout. Result retrieval uses a bounded `fetchmany` batch of the validated row
+limit plus one. Result normalization and contract validation finish inside the
+transaction; invariant failures roll back and expose only sanitized responses.
 
 ## Troubleshooting
 
