@@ -47,7 +47,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The current validated baseline is 553 passing tests without forbidden
+The current validated baseline is 612 passing tests without forbidden
 warnings.
 
 ## Systematic evaluation
@@ -90,7 +90,7 @@ Run the 49 focused evaluation tests:
 .venv/bin/pytest -q tests/unit/evaluation
 ```
 
-The complete validated baseline contains 553 passing tests:
+The complete validated baseline contains 612 passing tests:
 
 ```bash
 .venv/bin/pytest -q

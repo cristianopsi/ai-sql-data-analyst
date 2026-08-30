@@ -174,10 +174,15 @@ separate SQLGlot security validator.
 
 The validator accepts exactly one PostgreSQL `SELECT` statement and verifies
 every referenced table and column against the question context. It also applies
-a function allowlist and rejects multiple statements, writes, DDL, `COPY`,
-stars, comments, locks, `SELECT INTO`, common table expressions, subqueries,
-and set operations. A mandatory row limit is added or reduced to the configured
-maximum.
+function, table, and column allowlists; rejects multiple statements, writes,
+DDL, `COPY`, comments, locks, `SELECT INTO`, subqueries, set operations, and
+uncontrolled star expressions; and validates joins against grounded semantic
+relationships. `COUNT(*)` is accepted only for controlled row counts. Queries
+may use at most two independent, non-recursive top-level CTEs with explicit
+named outputs and physical-column lineage. Recursive, nested, data-modifying,
+dependent, shadowing, materialized, set-operation, offset, or internally
+limited CTEs fail closed. A mandatory outer row limit is added or reduced to
+the configured maximum.
 
 Rejected proposals may enter a bounded repair loop. Every repaired proposal
 passes through the complete validator again, and exhaustion fails with a
@@ -403,7 +408,7 @@ credentials remain outside the report. See
 
 ## Quality evidence
 
-- 553 automated tests passed;
+- 612 automated tests passed;
 - branch-aware backend coverage is 90.45%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
@@ -488,7 +493,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The validated local baseline contains **553 passing tests**. The CI matrix
+The validated local baseline contains **612 passing tests**. The CI matrix
 covers Python 3.12 and Python 3.13. Its container job validates Compose,
 builds both images, and runs non-root smoke tests with `--network none`.
 
