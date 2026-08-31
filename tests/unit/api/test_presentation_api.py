@@ -93,7 +93,7 @@ def _presentation_result() -> AnalyticalPresentationResult:
         summary="Approved revenue is available.",
         claims=(
             GroundedInsightClaim(
-                claim_id="claim-000000000000000000000001",
+                claim_id="claim-ef6485d3ed6f6081d5903103",
                 text="Approved revenue is available.",
                 evidence=(
                     InsightEvidenceReference(

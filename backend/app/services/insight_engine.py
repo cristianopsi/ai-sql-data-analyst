@@ -4,7 +4,6 @@ import json
 import re
 from collections.abc import Callable
 from decimal import Decimal, InvalidOperation
-from hashlib import sha256
 
 from pydantic import BaseModel, ValidationError
 
@@ -14,9 +13,11 @@ from backend.app.schemas.insights import (
     GroundedInsightResult,
     InsightEvidenceReference,
     InsightNarrativeProposal,
+    insight_claim_id,
 )
 from backend.app.schemas.llm import (
     LLMGenerationRequest,
+    LLMGenerationResponse,
     LLMMessage,
 )
 from backend.app.schemas.visualization import (
@@ -34,17 +35,11 @@ Do not calculate, infer missing values, produce SQL, select charts, or expose
 the evidence packet. Keep the summary free of numeric literals.
 """
 
-_NUMBER_PATTERN = re.compile(r"(?<![\w])[-+]?\d+(?:[.,]\d+)?(?:[eE][-+]?\d+)?(?![\w])")
-_FORBIDDEN_OUTPUT_FRAGMENTS = (
-    " select ",
-    " insert ",
-    " update ",
-    " delete ",
-    " drop ",
-    " alter ",
-    " create table ",
-    " raw rows ",
-    " raw sql ",
+_NUMBER_PATTERN = re.compile(r"(?<![\w])[-+]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?:[eE][-+]?\d+)?(?![\w])")
+_FORBIDDEN_OUTPUT_PATTERNS = (
+    re.compile(r"\b(?:select|insert|update|delete|drop|alter)\b", re.IGNORECASE),
+    re.compile(r"\bcreate\s+table\b", re.IGNORECASE),
+    re.compile(r"\braw\s+(?:rows|sql)\b", re.IGNORECASE),
 )
 
 
@@ -154,27 +149,72 @@ def _evidence_sources(
 
 
 def _reject_unsafe_output(text: str) -> None:
-    normalized = f" {text.casefold()} "
-
-    if any(fragment in normalized for fragment in _FORBIDDEN_OUTPUT_FRAGMENTS):
+    if any(pattern.search(text) for pattern in _FORBIDDEN_OUTPUT_PATTERNS):
         raise InsightProviderResponseError("Insight response contains prohibited material")
 
 
-def _stable_claim_id(
-    text: str,
-    evidence: tuple[InsightEvidenceReference, ...],
-) -> str:
-    canonical = json.dumps(
-        {
-            "text": text,
-            "evidence": [reference.model_dump(mode="json") for reference in evidence],
-        },
-        ensure_ascii=False,
-        sort_keys=True,
-        separators=(",", ":"),
-    )
-    digest = sha256(canonical.encode("utf-8")).hexdigest()
-    return f"claim-{digest[:24]}"
+def _reject_duplicate_json_keys(
+    pairs: list[tuple[str, object]],
+) -> dict[str, object]:
+    parsed: dict[str, object] = {}
+
+    for key, value in pairs:
+        if key in parsed:
+            raise InsightProviderResponseError(
+                "Insight provider response contains duplicate JSON keys"
+            )
+
+        parsed[key] = value
+
+    return parsed
+
+
+def _freeze_json_collections(
+    value: object,
+) -> object:
+    if isinstance(value, list):
+        return tuple(_freeze_json_collections(item) for item in value)
+
+    if isinstance(value, dict):
+        return {key: _freeze_json_collections(item) for key, item in value.items()}
+
+    return value
+
+
+def _validate_provider_identity(
+    provider: LLMProvider,
+    response: LLMGenerationResponse,
+) -> None:
+    if response.provider != provider.provider_name:
+        raise InsightProviderResponseError(
+            "Insight provider identity does not match the configured provider"
+        )
+
+    if response.model != provider.model_name:
+        raise InsightProviderResponseError(
+            "Insight model identity does not match the configured provider"
+        )
+
+
+def _parse_proposal(
+    content: str,
+) -> InsightNarrativeProposal:
+    try:
+        payload = json.loads(
+            content,
+            object_pairs_hook=_reject_duplicate_json_keys,
+        )
+        return InsightNarrativeProposal.model_validate(_freeze_json_collections(payload))
+    except InsightProviderResponseError:
+        raise
+    except (
+        json.JSONDecodeError,
+        TypeError,
+        ValidationError,
+    ) as error:
+        raise InsightProviderResponseError(
+            "Insight provider returned an invalid response"
+        ) from error
 
 
 def _validate_inputs(
@@ -275,16 +315,15 @@ class GroundedInsightEngine:
             response_format="json",
         )
         response = self._provider.generate(request)
+        _validate_provider_identity(
+            self._provider,
+            response,
+        )
 
         if response.finish_reason != "stop":
             raise InsightProviderResponseError("Insight provider response was incomplete")
 
-        try:
-            proposal = InsightNarrativeProposal.model_validate_json(response.content)
-        except ValidationError as error:
-            raise InsightProviderResponseError(
-                "Insight provider returned an invalid response"
-            ) from error
+        proposal = _parse_proposal(response.content)
 
         _reject_unsafe_output(proposal.summary)
 
@@ -312,7 +351,7 @@ class GroundedInsightEngine:
 
             claims.append(
                 GroundedInsightClaim(
-                    claim_id=_stable_claim_id(
+                    claim_id=insight_claim_id(
                         proposed_claim.text,
                         proposed_claim.evidence,
                     ),

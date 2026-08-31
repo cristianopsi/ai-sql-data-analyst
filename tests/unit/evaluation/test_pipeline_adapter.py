@@ -23,6 +23,7 @@ from backend.app.schemas.insights import (
     GroundedInsightClaim,
     GroundedInsightResult,
     InsightEvidenceReference,
+    insight_claim_id,
 )
 from backend.app.schemas.query_execution import QueryExecutionResult
 from backend.app.schemas.sql_generation import SQLGenerationResult
@@ -202,7 +203,10 @@ class StubInsightEngine:
             metric_name=metric_name,
         )
         claim = GroundedInsightClaim(
-            claim_id="claim-0123456789abcdef01234567",
+            claim_id=insight_claim_id(
+                "Controlled grounded claim.",
+                (evidence,),
+            ),
             text="Controlled grounded claim.",
             evidence=(evidence,),
         )

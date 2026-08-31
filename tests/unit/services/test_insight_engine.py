@@ -11,9 +11,12 @@ from backend.app.schemas.analytics import (
     DeterministicAnalyticsResult,
 )
 from backend.app.schemas.insights import (
+    GroundedInsightClaim,
     GroundedInsightRequest,
+    GroundedInsightResult,
     InsightEvidenceReference,
     InsightNarrativeProposal,
+    insight_claim_id,
 )
 from backend.app.schemas.llm import (
     LLMFinishReason,
@@ -41,9 +44,13 @@ class StubLLMProvider:
         content: str,
         *,
         finish_reason: LLMFinishReason = "stop",
+        response_provider: str | None = None,
+        response_model: str | None = None,
     ) -> None:
         self._content = content
         self._finish_reason = finish_reason
+        self._response_provider = response_provider or self.provider_name
+        self._response_model = response_model or self.model_name
         self.requests: list[LLMGenerationRequest] = []
         self.closed = False
 
@@ -61,8 +68,8 @@ class StubLLMProvider:
     ) -> LLMGenerationResponse:
         self.requests.append(request)
         return LLMGenerationResponse(
-            provider=self.provider_name,
-            model=self.model_name,
+            provider=self._response_provider,
+            model=self._response_model,
             content=self._content,
             finish_reason=self._finish_reason,
             usage=LLMTokenUsage(
@@ -540,3 +547,191 @@ def test_insight_engine_factory_uses_managed_provider() -> None:
     assert isinstance(engine, GroundedInsightEngine)
     assert result.provider == provider.provider_name
     assert len(provider.requests) == 1
+
+
+def test_claim_requires_canonical_identifier() -> None:
+    evidence = InsightEvidenceReference(
+        evidence_type="metric_summary",
+        metric_name="approved_revenue",
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="claim ID must be canonical",
+    ):
+        GroundedInsightClaim(
+            claim_id=f"claim-{'0' * 24}",
+            text="Approved revenue is grounded.",
+            evidence=(evidence,),
+        )
+
+
+def test_result_requires_positive_source_row_count() -> None:
+    result = GroundedInsightEngine(StubLLMProvider(_valid_response())).generate(
+        _analytics_result(),
+        _visualization_result(),
+    )
+
+    with pytest.raises(ValidationError):
+        GroundedInsightResult(
+            analytics_version=result.analytics_version,
+            visualization_version=result.visualization_version,
+            execution_version=result.execution_version,
+            semantic_version=result.semantic_version,
+            catalog_version=result.catalog_version,
+            source_row_count=0,
+            provider=result.provider,
+            model=result.model,
+            usage=result.usage,
+            summary=result.summary,
+            claims=result.claims,
+        )
+
+
+def test_result_rejects_semantic_duplicate_claim_by_evidence_order() -> None:
+    metric_evidence = InsightEvidenceReference(
+        evidence_type="metric_summary",
+        metric_name="approved_revenue",
+    )
+    visualization_evidence = InsightEvidenceReference(
+        evidence_type="visualization",
+        specification_id="kpi-approved-revenue",
+    )
+    text = "Approved revenue is grounded."
+    ordered_evidence = (
+        metric_evidence,
+        visualization_evidence,
+    )
+    reversed_evidence = tuple(reversed(ordered_evidence))
+
+    first = GroundedInsightClaim(
+        claim_id=insight_claim_id(
+            text,
+            ordered_evidence,
+        ),
+        text=text,
+        evidence=ordered_evidence,
+    )
+    second = GroundedInsightClaim(
+        claim_id=insight_claim_id(
+            text,
+            reversed_evidence,
+        ),
+        text=text,
+        evidence=reversed_evidence,
+    )
+
+    assert first.claim_id == second.claim_id
+
+    with pytest.raises(
+        ValidationError,
+        match="semantic claims must be unique",
+    ):
+        GroundedInsightResult(
+            analytics_version="1",
+            visualization_version="1",
+            execution_version="1",
+            semantic_version="1",
+            catalog_version="1",
+            source_row_count=2,
+            provider="stub",
+            model="stub-insight-model",
+            usage=LLMTokenUsage(
+                input_tokens=1,
+                output_tokens=1,
+            ),
+            summary="Approved revenue is grounded.",
+            claims=(
+                first,
+                second,
+            ),
+        )
+
+
+def test_engine_rejects_sql_with_nonspace_whitespace() -> None:
+    payload = json.loads(_valid_response())
+    payload["claims"][0]["text"] = "SELECT\napproved_revenue FROM retail.orders."
+    engine = GroundedInsightEngine(StubLLMProvider(json.dumps(payload)))
+
+    with pytest.raises(
+        InsightProviderResponseError,
+        match="prohibited material",
+    ):
+        engine.generate(
+            _analytics_result(),
+            _visualization_result(),
+        )
+
+
+def test_engine_rejects_shorthand_uncited_decimal() -> None:
+    payload = json.loads(_valid_response())
+    payload["claims"][0]["text"] = "A variação não fundamentada é .2."
+    engine = GroundedInsightEngine(StubLLMProvider(json.dumps(payload)))
+
+    with pytest.raises(
+        InsightProviderResponseError,
+        match="uncited numeric value",
+    ):
+        engine.generate(
+            _analytics_result(),
+            _visualization_result(),
+        )
+
+
+def test_engine_rejects_duplicate_json_keys() -> None:
+    content = _valid_response().replace(
+        '"summary":',
+        '"summary": "Resumo duplicado.", "summary":',
+        1,
+    )
+    engine = GroundedInsightEngine(StubLLMProvider(content))
+
+    with pytest.raises(
+        InsightProviderResponseError,
+        match="duplicate JSON keys",
+    ):
+        engine.generate(
+            _analytics_result(),
+            _visualization_result(),
+        )
+
+
+@pytest.mark.parametrize(
+    (
+        "response_provider",
+        "response_model",
+        "expected_message",
+    ),
+    (
+        (
+            "forged-provider",
+            None,
+            "provider identity",
+        ),
+        (
+            None,
+            "forged-model",
+            "model identity",
+        ),
+    ),
+)
+def test_engine_rejects_provider_identity_mismatch(
+    response_provider: str | None,
+    response_model: str | None,
+    expected_message: str,
+) -> None:
+    provider = StubLLMProvider(
+        _valid_response(),
+        response_provider=response_provider,
+        response_model=response_model,
+    )
+    engine = GroundedInsightEngine(provider)
+
+    with pytest.raises(
+        InsightProviderResponseError,
+        match=expected_message,
+    ):
+        engine.generate(
+            _analytics_result(),
+            _visualization_result(),
+        )

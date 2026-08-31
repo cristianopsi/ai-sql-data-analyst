@@ -352,10 +352,22 @@ identifiers. Each claim must reference a known metric or visualization. The LLM
 proposes only narrative text; it does not calculate metrics, generate additional
 SQL, modify deterministic results, or select charts.
 
-Provider JSON is parsed directly into a strict schema. Software rejects malformed
-or incomplete responses, unknown or duplicate evidence references, uncited
-numeric claims, prohibited output material, and mismatched source versions or row
-counts. Claim identifiers are generated deterministically after validation.
+Provider JSON is parsed with duplicate-key rejection before strict schema
+validation. Software rejects malformed or incomplete responses, unknown or
+duplicate evidence references, uncited numeric claims including shorthand
+decimals, prohibited SQL material across whitespace variations, and mismatched
+source versions or row counts.
+
+Grounded results require a positive source row count and canonical SHA-256 claim
+identifiers derived from claim text and an order-independent evidence set.
+Semantically duplicate claims are rejected even when evidence order differs.
+Returned provider and model identities must exactly match the configured managed
+provider.
+
+Qualitative narrative without numeric literals remains provider-authored and is
+not independently truth-scored. Deterministic enforcement covers provenance,
+identity, evidence references, numeric fidelity, prohibited material, structure,
+and bounded output.
 
 Successful responses preserve source versions, provider and model metadata,
 token usage, source row count, a bounded summary, grounded claims, and explicit
@@ -436,8 +448,8 @@ credentials remain outside the report. See
 
 ## Quality evidence
 
-- 672 automated tests passed;
-- branch-aware backend coverage is 88.12%;
+- 680 automated tests passed;
+- branch-aware backend coverage is 88.21%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;
@@ -521,7 +533,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The validated local baseline contains **672 passing tests**. The CI matrix
+The validated local baseline contains **680 passing tests**. The CI matrix
 covers Python 3.12 and Python 3.13. Its container job validates Compose,
 builds both images, and runs non-root smoke tests with `--network none`.
 

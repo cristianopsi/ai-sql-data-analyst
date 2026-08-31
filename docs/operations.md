@@ -47,7 +47,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The current validated baseline is 672 passing tests without forbidden
+The current validated baseline is 680 passing tests without forbidden
 warnings.
 
 ## Visualization integrity controls
@@ -63,7 +63,27 @@ previous values plus controlled absolute and percentage changes.
 Unexpected runtime failures from
 `POST /api/v1/visualizations/specify` fail closed as sanitized JSON with HTTP
 503 and `Cache-Control: no-store`; internal exception details are not returned.
-The validated branch-aware backend coverage baseline is 88.12%.
+The validated branch-aware backend coverage baseline is 88.21%.
+
+## Grounded insight integrity controls
+
+Grounded insight results require a positive source row count and canonical
+SHA-256 claim identifiers derived from normalized claim text and an
+order-independent evidence set. Duplicate semantic claims are rejected even when
+their evidence references arrive in a different order.
+
+Provider JSON is checked for duplicate object keys before strict model
+validation. Numeric validation recognizes conventional and shorthand decimals,
+and prohibited SQL material is detected across spaces, tabs, and line breaks.
+The provider and model identities in every response must exactly match the
+configured managed provider.
+
+The LLM receives only the bounded allowlisted evidence packet. It cannot submit
+trusted analytics, alter deterministic calculations, select charts, or introduce
+uncited numeric values. Qualitative text without numeric literals is still
+provider-authored and is not independently truth-scored; deterministic controls
+validate its provenance, evidence, structure, identity, prohibited material, and
+bounds.
 
 ## Systematic evaluation
 
@@ -105,7 +125,7 @@ Run the 49 focused evaluation tests:
 .venv/bin/pytest -q tests/unit/evaluation
 ```
 
-The complete validated baseline contains 672 passing tests:
+The complete validated baseline contains 680 passing tests:
 
 ```bash
 .venv/bin/pytest -q
