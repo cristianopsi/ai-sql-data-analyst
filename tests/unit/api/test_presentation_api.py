@@ -22,6 +22,7 @@ from backend.app.schemas.presentation import (
 from backend.app.schemas.visualization import (
     DeterministicVisualizationResult,
     KPIVisualizationSpec,
+    visualization_specification_id,
 )
 from backend.app.services.analytics_engine import (
     DeterministicAnalyticsEngine,
@@ -58,12 +59,17 @@ def _presentation_result() -> AnalyticalPresentationResult:
         source_row_count=1,
         specifications=(
             KPIVisualizationSpec.model_construct(
-                spec_id="kpi-approved-revenue",
+                spec_id=visualization_specification_id(
+                    "kpi",
+                    "approved_revenue",
+                ),
                 chart_type="kpi",
                 title="Approved revenue",
                 metric_name="approved_revenue",
                 unit="brl",
                 value_count=1,
+                aggregation="sum",
+                total=Decimal("100.01"),
                 value=Decimal("100.01"),
                 average=Decimal("100.01"),
                 minimum=Decimal("100.01"),

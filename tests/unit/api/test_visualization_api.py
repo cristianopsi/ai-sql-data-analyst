@@ -617,6 +617,48 @@ def test_unavailable_failure_returns_sanitized_503(
     assert events == expected_events
 
 
+def test_unexpected_runtime_failure_returns_sanitized_503() -> None:
+    sensitive_detail = "Sensitive unexpected runtime detail"
+    (
+        events,
+        pipeline,
+        executor,
+        analytics_engine,
+        visualization_engine,
+    ) = build_stubs(
+        visualization_error=RuntimeError(sensitive_detail),
+    )
+
+    with visualization_client(
+        pipeline,
+        executor,
+        analytics_engine,
+        visualization_engine,
+    ) as client:
+        response = client.post(
+            "/api/v1/visualizations/specify",
+            json={
+                "question": "Receita aprovada",
+            },
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {
+        "detail": "Visualization service is unavailable",
+    }
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["content-type"].startswith(
+        "application/json",
+    )
+    assert sensitive_detail not in response.text
+    assert events == [
+        "generate",
+        "execute",
+        "analyze",
+        "specify",
+    ]
+
+
 @pytest.mark.parametrize(
     (
         "pipeline_present",

@@ -8,6 +8,9 @@ from collections.abc import Callable
 import httpx
 import pytest
 
+from backend.app.schemas.visualization import (
+    visualization_specification_id,
+)
 from frontend.api_client import (
     PresentationClientConfigurationError,
     PresentationClientError,
@@ -41,12 +44,17 @@ def _valid_payload() -> dict[str, object]:
             "source_row_count": 1,
             "specifications": [
                 {
-                    "spec_id": f"kpi-{'a' * 64}",
+                    "spec_id": visualization_specification_id(
+                        "kpi",
+                        "approved_revenue",
+                    ),
                     "chart_type": "kpi",
                     "title": "Approved Revenue",
                     "metric_name": "approved_revenue",
                     "unit": "brl",
+                    "aggregation": "sum",
                     "value_count": 1,
+                    "total": "100.01",
                     "value": "100.01",
                     "average": "100.01",
                     "minimum": "100.01",

@@ -163,6 +163,8 @@ class StubVisualizationEngine:
             metric_name=summary.metric_name,
             unit=summary.unit,
             value_count=summary.value_count,
+            aggregation=summary.aggregation,
+            total=summary.total,
             value=summary.total,
             average=summary.average,
             minimum=summary.minimum,

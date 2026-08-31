@@ -21,17 +21,23 @@ from backend.app.schemas.visualization import (
     LineVisualizationSpec,
     TableVisualizationRow,
     TableVisualizationSpec,
+    visualization_specification_id,
 )
 from frontend import rendering
 
 
 def _kpi() -> KPIVisualizationSpec:
     return KPIVisualizationSpec(
-        spec_id="specification-kpi",
+        spec_id=visualization_specification_id(
+            "kpi",
+            "approved_revenue",
+        ),
         title="Approved Revenue",
         metric_name="approved_revenue",
         unit="brl",
         value_count=2,
+        aggregation="sum",
+        total=Decimal("1234.56"),
         value=Decimal("1234.56"),
         average=Decimal("617.28"),
         minimum=Decimal("500.00"),
@@ -41,11 +47,16 @@ def _kpi() -> KPIVisualizationSpec:
 
 def _bar() -> BarVisualizationSpec:
     return BarVisualizationSpec(
-        spec_id="specification-bar",
+        spec_id=visualization_specification_id(
+            "bar",
+            "approved_revenue",
+            "region",
+        ),
         title="Approved Revenue by Region",
         metric_name="approved_revenue",
         dimension_name="region",
         unit="brl",
+        ranking_total=Decimal("250.00"),
         items=(
             BarVisualizationItem(
                 position=1,
@@ -65,7 +76,11 @@ def _bar() -> BarVisualizationSpec:
 
 def _line() -> LineVisualizationSpec:
     return LineVisualizationSpec(
-        spec_id="specification-line",
+        spec_id=visualization_specification_id(
+            "line",
+            "approved_revenue",
+            "month",
+        ),
         title="Approved Revenue over Time",
         metric_name="approved_revenue",
         dimension_name="month",
@@ -93,11 +108,16 @@ def _line() -> LineVisualizationSpec:
 
 def _table() -> TableVisualizationSpec:
     return TableVisualizationSpec(
-        spec_id="specification-table",
+        spec_id=visualization_specification_id(
+            "table",
+            "approved_revenue",
+            "region",
+        ),
         title="Approved Revenue by Region",
         metric_name="approved_revenue",
         dimension_name="region",
         unit="brl",
+        ranking_total=Decimal("250.00"),
         rows=(
             TableVisualizationRow(
                 position=1,
@@ -143,24 +163,34 @@ def _presentation() -> AnalyticalPresentationResult:
             "source_row_count": 2,
             "specifications": [
                 {
-                    "spec_id": "specification-kpi",
+                    "spec_id": visualization_specification_id(
+                        "kpi",
+                        "approved_revenue",
+                    ),
                     "chart_type": "kpi",
                     "title": "Approved Revenue",
                     "metric_name": "approved_revenue",
                     "unit": "brl",
+                    "aggregation": "sum",
                     "value_count": 2,
+                    "total": "200.00",
                     "value": "200.00",
                     "average": "100.00",
                     "minimum": "100.00",
                     "maximum": "100.00",
                 },
                 {
-                    "spec_id": "specification-bar",
+                    "spec_id": visualization_specification_id(
+                        "bar",
+                        "approved_revenue",
+                        "region",
+                    ),
                     "chart_type": "bar",
                     "title": "Approved Revenue by Region",
                     "metric_name": "approved_revenue",
                     "dimension_name": "region",
                     "unit": "brl",
+                    "ranking_total": "200.00",
                     "items": [
                         {
                             "position": 1,

@@ -23,6 +23,7 @@ from backend.app.schemas.sql_generation import SQLGenerationResult
 from backend.app.schemas.visualization import (
     DeterministicVisualizationResult,
     KPIVisualizationSpec,
+    visualization_specification_id,
 )
 from backend.app.services.analytics_engine import (
     DeterministicAnalyticsEngine,
@@ -63,24 +64,34 @@ def _visualization_result(
     **updates: object,
 ) -> DeterministicVisualizationResult:
     first = KPIVisualizationSpec.model_construct(
-        spec_id="specification-a",
+        spec_id=visualization_specification_id(
+            "kpi",
+            "approved_revenue",
+        ),
         chart_type="kpi",
         title="Approved revenue",
         metric_name="approved_revenue",
         unit="brl",
         value_count=5,
+        aggregation="sum",
+        total=Decimal("100.10"),
         value=Decimal("100.10"),
         average=Decimal("20.02"),
         minimum=Decimal("10.01"),
         maximum=Decimal("30.03"),
     )
     second = KPIVisualizationSpec.model_construct(
-        spec_id="specification-b",
+        spec_id=visualization_specification_id(
+            "kpi",
+            "approved_revenue_average",
+        ),
         chart_type="kpi",
         title="Approved revenue average",
-        metric_name="approved_revenue",
+        metric_name="approved_revenue_average",
         unit="brl",
         value_count=5,
+        aggregation="average",
+        total=Decimal("100.10"),
         value=Decimal("20.02"),
         average=Decimal("20.02"),
         minimum=Decimal("10.01"),
@@ -351,8 +362,14 @@ def test_service_preserves_visualization_identity_order_and_decimals() -> None:
     assert result.visualizations is harness.visualizations
     assert result.insights is harness.insights
     assert [specification.spec_id for specification in result.visualizations.specifications] == [
-        "specification-a",
-        "specification-b",
+        visualization_specification_id(
+            "kpi",
+            "approved_revenue",
+        ),
+        visualization_specification_id(
+            "kpi",
+            "approved_revenue_average",
+        ),
     ]
 
     first = result.visualizations.specifications[0]

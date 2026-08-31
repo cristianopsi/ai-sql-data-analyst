@@ -47,8 +47,23 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The current validated baseline is 659 passing tests without forbidden
+The current validated baseline is 672 passing tests without forbidden
 warnings.
+
+## Visualization integrity controls
+
+The visualization schema requires canonical SHA-256 specification identifiers,
+a positive source row count, and unique semantic specifications. KPI
+specifications preserve aggregation and total provenance and validate their
+average and governed primary value. Table and bar specifications preserve the
+full ranking total, validate every share against that total, and must agree when
+they describe the same metric and dimension. Line specifications validate
+previous values plus controlled absolute and percentage changes.
+
+Unexpected runtime failures from
+`POST /api/v1/visualizations/specify` fail closed as sanitized JSON with HTTP
+503 and `Cache-Control: no-store`; internal exception details are not returned.
+The validated branch-aware backend coverage baseline is 88.12%.
 
 ## Systematic evaluation
 
@@ -90,7 +105,7 @@ Run the 49 focused evaluation tests:
 .venv/bin/pytest -q tests/unit/evaluation
 ```
 
-The complete validated baseline contains 659 passing tests:
+The complete validated baseline contains 672 passing tests:
 
 ```bash
 .venv/bin/pytest -q

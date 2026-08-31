@@ -303,12 +303,26 @@ deterministic, while metric units and fixed-scale `Decimal` values are
 preserved. Stable SHA-256 identifiers and the fixed KPI, table, bar, then line
 order make results reproducible.
 
+Visualization specifications use canonical SHA-256 specification identifiers
+derived from their chart type and governed semantic identifiers. Every result
+requires a positive source row count and rejects duplicate semantic
+specifications. KPI specifications serialize the governed aggregation and total,
+validate the average against the total and value count, and enforce the
+aggregation-specific primary value.
+
+Table and bar specifications preserve the full ranking total and validate every
+displayed share against it. Paired table and bar specifications for the same
+metric and dimension must remain consistent. Line specifications validate each
+previous value and its controlled absolute and percentage changes.
+
 The visualization engine does not call an LLM, query the database, access the
 network, import Plotly, or render charts. Responses contain typed specifications
 and version metadata without raw SQL, rows, grounding context, or internal
 column metadata. The endpoint returns HTTP 200 for deterministic specifications,
 HTTP 422 for invalid or unsafe requests, and HTTP 503 for unavailable managed
-services. Responses disable client caching.
+services or unexpected runtime failures. Unexpected failures return sanitized
+JSON without internal exception details. Responses disable client caching with
+`Cache-Control: no-store`.
 
 Manual validation exercised the endpoint through a real Uvicorn HTTP server and
 the local PostgreSQL analytics role. A governed approved-revenue-by-region
@@ -422,8 +436,8 @@ credentials remain outside the report. See
 
 ## Quality evidence
 
-- 659 automated tests passed;
-- branch-aware backend coverage is 88.06%;
+- 672 automated tests passed;
+- branch-aware backend coverage is 88.12%;
 - Ruff lint and format checks pass;
 - mypy strict mode passes;
 - no known dependency vulnerabilities were found;
@@ -507,7 +521,7 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The validated local baseline contains **659 passing tests**. The CI matrix
+The validated local baseline contains **672 passing tests**. The CI matrix
 covers Python 3.12 and Python 3.13. Its container job validates Compose,
 builds both images, and runs non-root smoke tests with `--network none`.
 

@@ -1,5 +1,4 @@
 from collections.abc import Callable
-from hashlib import sha256
 
 from pydantic import ValidationError
 
@@ -19,6 +18,8 @@ from backend.app.schemas.visualization import (
     LineVisualizationSpec,
     TableVisualizationRow,
     TableVisualizationSpec,
+    visualization_ranking_total,
+    visualization_specification_id,
 )
 
 
@@ -39,23 +40,6 @@ def _display_name(
         raise VisualizationInputError("Visualization identifier is invalid")
 
     return " ".join(word.capitalize() for word in words)
-
-
-def _specification_id(
-    chart_type: str,
-    *identifiers: str,
-) -> str:
-    payload = "\x1f".join(
-        (
-            chart_type,
-            *(identifier.casefold() for identifier in identifiers),
-        )
-    )
-    digest = sha256(
-        payload.encode("utf-8"),
-    ).hexdigest()
-
-    return f"{chart_type}-{digest}"
 
 
 def _summary_by_metric(
@@ -96,7 +80,7 @@ class DeterministicVisualizationEngine:
 
         kpis = tuple(
             KPIVisualizationSpec(
-                spec_id=_specification_id(
+                spec_id=visualization_specification_id(
                     "kpi",
                     summary.metric_name,
                 ),
@@ -104,6 +88,8 @@ class DeterministicVisualizationEngine:
                 metric_name=summary.metric_name,
                 unit=summary.unit,
                 value_count=summary.value_count,
+                aggregation=summary.aggregation,
+                total=summary.total,
                 value=summary.primary_value,
                 average=summary.average,
                 minimum=summary.minimum,
@@ -121,9 +107,11 @@ class DeterministicVisualizationEngine:
             if summary is None:
                 raise VisualizationInputError("Ranking references an unknown metric")
 
+            ranking_total = visualization_ranking_total(tuple(item.value for item in ranking.items))
+
             tables.append(
                 TableVisualizationSpec(
-                    spec_id=_specification_id(
+                    spec_id=visualization_specification_id(
                         "table",
                         summary.metric_name,
                         ranking.dimension_name,
@@ -135,6 +123,7 @@ class DeterministicVisualizationEngine:
                     metric_name=summary.metric_name,
                     dimension_name=ranking.dimension_name,
                     unit=summary.unit,
+                    ranking_total=ranking_total,
                     rows=tuple(
                         TableVisualizationRow(
                             position=item.rank,
@@ -149,7 +138,7 @@ class DeterministicVisualizationEngine:
 
             bars.append(
                 BarVisualizationSpec(
-                    spec_id=_specification_id(
+                    spec_id=visualization_specification_id(
                         "bar",
                         summary.metric_name,
                         ranking.dimension_name,
@@ -161,6 +150,7 @@ class DeterministicVisualizationEngine:
                     metric_name=summary.metric_name,
                     dimension_name=ranking.dimension_name,
                     unit=summary.unit,
+                    ranking_total=ranking_total,
                     items=tuple(
                         BarVisualizationItem(
                             position=item.rank,
@@ -183,7 +173,7 @@ class DeterministicVisualizationEngine:
 
             lines.append(
                 LineVisualizationSpec(
-                    spec_id=_specification_id(
+                    spec_id=visualization_specification_id(
                         "line",
                         summary.metric_name,
                         series.dimension_name,

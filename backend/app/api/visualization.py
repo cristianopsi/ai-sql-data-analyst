@@ -263,6 +263,11 @@ async def specify_visualizations(
             "Visualization service is unavailable",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
+    except Exception:
+        return _error_response(
+            "Visualization service is unavailable",
+            status.HTTP_503_SERVICE_UNAVAILABLE,
+        )
 
     headers = {
         **NO_STORE_HEADERS,

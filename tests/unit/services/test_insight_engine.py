@@ -108,6 +108,8 @@ def _visualization_result() -> DeterministicVisualizationResult:
         metric_name="approved_revenue",
         unit="brl",
         value_count=2,
+        aggregation="sum",
+        total=Decimal("300.00"),
         value=Decimal("300.00"),
         average=Decimal("150.00"),
         minimum=Decimal("100.00"),

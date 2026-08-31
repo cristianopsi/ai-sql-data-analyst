@@ -161,6 +161,8 @@ def test_kpi_rejects_non_finite_values() -> None:
             metric_name="test_metric",
             unit="count",
             value_count=1,
+            aggregation="sum",
+            total=Decimal("NaN"),
             value=Decimal("NaN"),
             average=Decimal("1"),
             minimum=Decimal("1"),
@@ -188,6 +190,8 @@ def test_kpi_requires_consistent_bounds() -> None:
             metric_name="test_metric",
             unit="count",
             value_count=1,
+            aggregation="sum",
+            total=Decimal("10"),
             value=Decimal("10"),
             average=Decimal("10"),
             minimum=Decimal("1"),
@@ -206,6 +210,7 @@ def test_bar_requires_contiguous_positions() -> None:
             metric_name="test_metric",
             dimension_name="region",
             unit="count",
+            ranking_total=Decimal("1"),
             items=(
                 BarVisualizationItem(
                     position=2,
@@ -227,6 +232,7 @@ def test_bar_rejects_duplicate_labels() -> None:
             metric_name="test_metric",
             dimension_name="region",
             unit="count",
+            ranking_total=Decimal("3"),
             items=(
                 BarVisualizationItem(
                     position=1,
@@ -253,6 +259,7 @@ def test_table_requires_contiguous_positions() -> None:
             metric_name="test_metric",
             dimension_name="region",
             unit="count",
+            ranking_total=Decimal("1"),
             rows=(
                 TableVisualizationRow(
                     position=2,
@@ -451,15 +458,24 @@ def test_engine_resolves_metric_units_case_insensitively() -> None:
 
 def test_engine_applies_deterministic_collection_limits() -> None:
     analytics = build_analytics_result()
+    ranking_item_count = MAX_TABLE_ROWS + 1
+    ranking_total = Decimal(ranking_item_count)
+    ranking_share = (Decimal("100") / ranking_total).quantize(
+        Decimal("0.0001"),
+    )
     ranking = analytics.rankings[0].model_copy(
         update={
             "items": tuple(
                 AnalyticsRankingItem(
                     rank=position,
                     dimension_value=f"Region {position:03d}",
-                    value=Decimal(position),
+                    value=Decimal("1"),
+                    share_percent=ranking_share,
                 )
-                for position in range(1, MAX_TABLE_ROWS + 2)
+                for position in range(
+                    1,
+                    ranking_item_count + 1,
+                )
             )
         }
     )
@@ -469,10 +485,10 @@ def test_engine_applies_deterministic_collection_limits() -> None:
                 AnalyticsSeriesPoint(
                     position=position,
                     dimension_value=f"2026-{position:03d}",
-                    value=Decimal(position),
-                    previous_value=(Decimal(position - 1) if position > 1 else None),
-                    absolute_change=(Decimal("1") if position > 1 else None),
-                    percentage_change=(Decimal("1") if position > 1 else None),
+                    value=Decimal("1"),
+                    previous_value=(Decimal("1") if position > 1 else None),
+                    absolute_change=(Decimal("0") if position > 1 else None),
+                    percentage_change=(Decimal("0") if position > 1 else None),
                 )
                 for position in range(1, MAX_LINE_POINTS + 2)
             )
@@ -543,3 +559,305 @@ def test_visualization_engine_factory_is_stateless() -> None:
     )
     assert first is not second
     assert first.specify(build_analytics_result()) == (second.specify(build_analytics_result()))
+
+
+def test_schema_rejects_noncanonical_specification_id() -> None:
+    generated = DeterministicVisualizationEngine().specify(
+        build_analytics_result(),
+    )
+    kpi = next(
+        specification
+        for specification in generated.specifications
+        if specification.chart_type == "kpi"
+    )
+    malformed_kpi = kpi.model_copy(
+        update={
+            "spec_id": f"kpi-{'0' * 64}",
+        }
+    )
+    specifications = tuple(
+        malformed_kpi if specification is kpi else specification
+        for specification in generated.specifications
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="canonical",
+    ):
+        DeterministicVisualizationResult(
+            analytics_version=generated.analytics_version,
+            execution_version=generated.execution_version,
+            semantic_version=generated.semantic_version,
+            catalog_version=generated.catalog_version,
+            source_row_count=generated.source_row_count,
+            specifications=specifications,
+        )
+
+
+def test_result_requires_positive_source_row_count() -> None:
+    generated = DeterministicVisualizationEngine().specify(
+        build_analytics_result(),
+    )
+    payload = generated.model_dump(mode="python")
+    payload["source_row_count"] = 0
+
+    with pytest.raises(
+        ValidationError,
+        match="greater than or equal to 1",
+    ):
+        DeterministicVisualizationResult.model_validate(
+            payload,
+        )
+
+
+@pytest.mark.parametrize(
+    (
+        "field_name",
+        "offset",
+        "expected_message",
+    ),
+    (
+        (
+            "average",
+            Decimal("0.0002"),
+            "average must match",
+        ),
+        (
+            "value",
+            Decimal("0.0001"),
+            "value must match its aggregation",
+        ),
+    ),
+)
+def test_kpi_rejects_inconsistent_arithmetic(
+    field_name: str,
+    offset: Decimal,
+    expected_message: str,
+) -> None:
+    generated = DeterministicVisualizationEngine().specify(
+        build_analytics_result(),
+    )
+    kpi = next(
+        specification
+        for specification in generated.specifications
+        if specification.chart_type == "kpi"
+    )
+    payload = kpi.model_dump(mode="python")
+    original_value = payload[field_name]
+
+    assert isinstance(original_value, Decimal)
+
+    payload[field_name] = original_value + offset
+
+    with pytest.raises(
+        ValidationError,
+        match=expected_message,
+    ):
+        KPIVisualizationSpec.model_validate(payload)
+
+
+def test_engine_propagates_full_ranking_total() -> None:
+    analytics = build_analytics_result()
+    generated = DeterministicVisualizationEngine().specify(
+        analytics,
+    )
+    ranking = analytics.rankings[0]
+    expected_total = sum(
+        (item.value for item in ranking.items),
+        Decimal("0"),
+    )
+    table = next(
+        specification
+        for specification in generated.specifications
+        if specification.chart_type == "table"
+    )
+    bar = next(
+        specification
+        for specification in generated.specifications
+        if specification.chart_type == "bar"
+    )
+
+    assert table.ranking_total == expected_total
+    assert bar.ranking_total == expected_total
+
+
+def test_bar_rejects_inconsistent_share() -> None:
+    generated = DeterministicVisualizationEngine().specify(
+        build_analytics_result(),
+    )
+    bar = next(
+        specification
+        for specification in generated.specifications
+        if specification.chart_type == "bar"
+    )
+    payload = bar.model_dump(mode="python")
+    items = tuple(payload["items"])
+    first_item = dict(items[0])
+    share = first_item["share_percent"]
+
+    assert isinstance(share, Decimal)
+
+    first_item["share_percent"] = share + Decimal("0.0001")
+    payload["items"] = (
+        first_item,
+        *items[1:],
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=("Bar visualization shares must match the ranking total"),
+    ):
+        BarVisualizationSpec.model_validate(payload)
+
+
+def test_table_rejects_inconsistent_share() -> None:
+    generated = DeterministicVisualizationEngine().specify(
+        build_analytics_result(),
+    )
+    table = next(
+        specification
+        for specification in generated.specifications
+        if specification.chart_type == "table"
+    )
+    payload = table.model_dump(mode="python")
+    rows = tuple(payload["rows"])
+    first_row = dict(rows[0])
+    share = first_row["share_percent"]
+
+    assert isinstance(share, Decimal)
+
+    first_row["share_percent"] = share + Decimal("0.0001")
+    payload["rows"] = (
+        first_row,
+        *rows[1:],
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=("Table visualization shares must match the ranking total"),
+    ):
+        TableVisualizationSpec.model_validate(payload)
+
+
+@pytest.mark.parametrize(
+    (
+        "field_name",
+        "offset",
+        "expected_message",
+    ),
+    (
+        (
+            "previous_value",
+            Decimal("1.0000"),
+            "previous values must match prior points",
+        ),
+        (
+            "absolute_change",
+            Decimal("0.0001"),
+            "absolute changes must match point values",
+        ),
+        (
+            "percentage_change",
+            Decimal("0.0001"),
+            "percentage changes must match point values",
+        ),
+    ),
+)
+def test_line_rejects_inconsistent_arithmetic(
+    field_name: str,
+    offset: Decimal,
+    expected_message: str,
+) -> None:
+    generated = DeterministicVisualizationEngine().specify(
+        build_analytics_result(),
+    )
+    line = next(
+        specification
+        for specification in generated.specifications
+        if specification.chart_type == "line"
+    )
+    payload = line.model_dump(mode="python")
+    points = tuple(payload["points"])
+    second_point = dict(points[1])
+    original_value = second_point[field_name]
+
+    assert isinstance(original_value, Decimal)
+
+    second_point[field_name] = original_value + offset
+    payload["points"] = (
+        points[0],
+        second_point,
+        *points[2:],
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=expected_message,
+    ):
+        LineVisualizationSpec.model_validate(payload)
+
+
+def test_result_rejects_table_bar_mismatch() -> None:
+    generated = DeterministicVisualizationEngine().specify(
+        build_analytics_result(),
+    )
+    bar = next(
+        specification
+        for specification in generated.specifications
+        if specification.chart_type == "bar"
+    )
+    inconsistent_bar = bar.model_copy(
+        update={
+            "title": f"{bar.title} mismatch",
+        }
+    )
+    specifications = tuple(
+        inconsistent_bar if specification is bar else specification
+        for specification in generated.specifications
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match=("Visualization table and bar specifications must match"),
+    ):
+        DeterministicVisualizationResult(
+            analytics_version=generated.analytics_version,
+            execution_version=generated.execution_version,
+            semantic_version=generated.semantic_version,
+            catalog_version=generated.catalog_version,
+            source_row_count=generated.source_row_count,
+            specifications=specifications,
+        )
+
+
+def test_result_rejects_duplicate_semantic_specification() -> None:
+    generated = DeterministicVisualizationEngine().specify(
+        build_analytics_result(),
+    )
+    kpi = next(
+        specification
+        for specification in generated.specifications
+        if specification.chart_type == "kpi"
+    )
+    duplicate = kpi.model_copy(
+        update={
+            "spec_id": f"kpi-{'f' * 64}",
+        }
+    )
+
+    with pytest.raises(
+        ValidationError,
+        match="semantic specifications must be unique",
+    ):
+        DeterministicVisualizationResult(
+            analytics_version=generated.analytics_version,
+            execution_version=generated.execution_version,
+            semantic_version=generated.semantic_version,
+            catalog_version=generated.catalog_version,
+            source_row_count=generated.source_row_count,
+            specifications=(
+                kpi,
+                duplicate,
+                *generated.specifications[1:],
+            ),
+        )
