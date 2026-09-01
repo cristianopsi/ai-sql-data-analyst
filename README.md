@@ -550,3 +550,11 @@ defined in [CONTRIBUTING.md](CONTRIBUTING.md).
 
 This project is distributed under the
 [MIT License](LICENSE).
+## DeepSeek API provider
+
+DeepSeek is an opt-in OpenAI-compatible provider. Use the official
+`https://api.deepseek.com` endpoint, `deepseek-v4-flash` as the primary model,
+and `deepseek-v4-pro` only as a controlled fallback. Thinking is disabled by
+default. Provider retries are bounded, credentials remain secret values, and
+all generated SQL continues through the mandatory local SQL validator. Live
+API smoke tests require separate authorization and are not part of unit tests.

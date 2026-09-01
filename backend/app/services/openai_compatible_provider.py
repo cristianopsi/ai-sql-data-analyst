@@ -1,3 +1,4 @@
+import time
 from collections.abc import Callable
 from threading import RLock
 from typing import Literal, cast
@@ -26,11 +27,7 @@ from backend.app.services.llm_provider import (
 )
 
 type OpenAICompatibleProviderName = Literal[
-    "openai",
-    "gemini",
-    "groq",
-    "openrouter",
-    "ollama",
+    "openai", "gemini", "groq", "openrouter", "ollama", "deepseek"
 ]
 
 ALLOWED_FINISH_REASONS = {
@@ -131,6 +128,20 @@ def _normalize_base_url(
     return normalized
 
 
+DEEPSEEK_API_BASE_URL = "https://api.deepseek.com"
+DEEPSEEK_PRIMARY_MODEL = "deepseek-v4-flash"
+DEEPSEEK_FALLBACK_MODEL = "deepseek-v4-pro"
+_DEEPSEEK_PROVIDER = "deepseek"
+_DEEPSEEK_ALLOWED_MODELS = frozenset({DEEPSEEK_PRIMARY_MODEL, DEEPSEEK_FALLBACK_MODEL})
+_DEEPSEEK_RETRYABLE_STATUS_CODES = frozenset({429, 500, 502, 503, 504})
+_DEEPSEEK_MAX_ATTEMPTS = 3
+_DEEPSEEK_MAX_BACKOFF_SECONDS = 1.0
+
+
+class _DeepSeekRetryableHTTPError(LLMProviderUnavailableError):
+    """Internal signal for a bounded DeepSeek retry."""
+
+
 class OpenAICompatibleLLMProvider:
     """Controlled non-streaming Chat Completions adapter."""
 
@@ -144,6 +155,7 @@ class OpenAICompatibleLLMProvider:
         timeout_seconds: float,
         max_response_bytes: int = (DEFAULT_MAX_RESPONSE_BYTES),
         client: httpx.Client | None = None,
+        sleeper: Callable[[float], None] = time.sleep,
     ) -> None:
         normalized_model = model_name.strip()
 
@@ -165,6 +177,16 @@ class OpenAICompatibleLLMProvider:
             provider_name,
             base_url,
         )
+        if self._provider_name == _DEEPSEEK_PROVIDER:
+            normalized_base_url = self._base_url.rstrip("/")
+            official_root = "https://api.deepseek.com"
+            if not (
+                normalized_base_url == official_root
+                or normalized_base_url.startswith(official_root + "/")
+            ):
+                raise LLMProviderConfigurationError("DeepSeek requires the official API endpoint")
+            if self._model_name not in _DEEPSEEK_ALLOWED_MODELS:
+                raise LLMProviderConfigurationError("Unsupported DeepSeek model")
         self._api_key = api_key
         self._timeout_seconds = timeout_seconds
         self._max_response_bytes = max_response_bytes
@@ -172,6 +194,7 @@ class OpenAICompatibleLLMProvider:
             timeout=timeout_seconds,
             follow_redirects=False,
         )
+        self._sleeper = sleeper
         self._lock = RLock()
         self._closed = False
 
@@ -227,9 +250,30 @@ class OpenAICompatibleLLMProvider:
                 "type": "json_object",
             }
 
+        if self._provider_name == _DEEPSEEK_PROVIDER:
+            payload["thinking"] = {"type": "disabled"}
         return payload
 
-    def generate(
+    def generate(self, request: LLMGenerationRequest) -> LLMGenerationResponse:
+        if self._provider_name != _DEEPSEEK_PROVIDER:
+            return self._generate_once(request)
+
+        last_error: _DeepSeekRetryableHTTPError | LLMProviderResponseError | None = None
+        for attempt in range(_DEEPSEEK_MAX_ATTEMPTS):
+            try:
+                return self._generate_once(request)
+            except (_DeepSeekRetryableHTTPError, LLMProviderResponseError) as exc:
+                last_error = exc
+                if attempt + 1 >= _DEEPSEEK_MAX_ATTEMPTS:
+                    break
+                delay = min(0.25 * (2**attempt), _DEEPSEEK_MAX_BACKOFF_SECONDS)
+                self._sleeper(delay)
+
+        if last_error is None:
+            raise LLMProviderUnavailableError("DeepSeek retry state is invalid")
+        raise last_error
+
+    def _generate_once(
         self,
         request: LLMGenerationRequest,
     ) -> LLMGenerationResponse:
@@ -247,6 +291,11 @@ class OpenAICompatibleLLMProvider:
             except httpx.HTTPError:
                 raise LLMProviderUnavailableError("LLM provider request failed") from None
 
+            if (
+                self._provider_name == _DEEPSEEK_PROVIDER
+                and response.status_code in _DEEPSEEK_RETRYABLE_STATUS_CODES
+            ):
+                raise _DeepSeekRetryableHTTPError("DeepSeek API is temporarily unavailable")
             if response.status_code != 200:
                 raise LLMProviderUnavailableError("LLM provider request failed")
 

@@ -367,3 +367,12 @@ Run `python -m alembic upgrade head` whenever a deployment introduces new
 migration revisions. Role bootstrap and grant application remain controlled
 operational steps and must finish before starting a backend that depends on the
 new roles, schema, or privileges.
+## Configure the DeepSeek API provider
+
+Set `LLM_PROVIDER=deepseek`, `LLM_MODEL=deepseek-v4-flash`,
+`LLM_BASE_URL=https://api.deepseek.com`, and inject `LLM_API_KEY` from the
+deployment secret mechanism. Do not commit the key or place it in Compose
+files. `deepseek-v4-pro` is the only controlled fallback model. Validate the
+health endpoint and mocked provider tests before deployment. Any live API smoke
+test requires separate authorization, a strict request limit, and sanitized
+logs.

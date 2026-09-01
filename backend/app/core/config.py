@@ -5,14 +5,7 @@ from pydantic import Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 AppEnvironment = Literal["development", "test", "production"]
-LLMProviderName = Literal[
-    "mock",
-    "openai",
-    "gemini",
-    "groq",
-    "openrouter",
-    "ollama",
-]
+LLMProviderName = Literal["mock", "openai", "gemini", "groq", "openrouter", "ollama", "deepseek"]
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LogFormat = Literal["json", "console"]
 

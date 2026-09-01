@@ -136,3 +136,11 @@ GitHub Actions contains two least-privilege jobs:
   networkless non-root smoke tests.
 
 The workflow references no repository secrets and publishes no images.
+## DeepSeek provider boundary
+
+The DeepSeek integration reuses the synchronous OpenAI-compatible adapter. It
+accepts only the official API host and the controlled Flash/Pro model pair.
+Authentication and balance errors fail immediately; rate-limit, transient
+server, and malformed-response retries have fixed attempt and backoff limits.
+Reasoning metadata is not part of the application response contract, and SQL
+validation remains mandatory after LLM generation.
