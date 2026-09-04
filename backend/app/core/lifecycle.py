@@ -32,6 +32,9 @@ from backend.app.services.llm_provider import (
     LLMProviderFactory,
     create_llm_provider,
 )
+from backend.app.services.presentation_artifact_service import (
+    create_presentation_artifact_service,
+)
 from backend.app.services.presentation_service import (
     AnalyticalPresentationService,
     create_presentation_service,
@@ -182,6 +185,9 @@ def create_database_lifespan(
                 insight_engine,
             )
             application.state.presentation_service = presentation_service
+
+            presentation_artifact_service = create_presentation_artifact_service()
+            application.state.presentation_artifact_service = presentation_artifact_service
 
             await run_in_threadpool(pools.open)
             pools_opened = True

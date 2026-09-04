@@ -1,11 +1,14 @@
 """Tests for the combined analytical presentation HTTP API."""
 
 from decimal import Decimal
+from io import BytesIO
 from typing import cast
 from unittest.mock import Mock
+from zipfile import ZipFile
 
 import pytest
 from fastapi.testclient import TestClient
+from pptx import Presentation
 
 from backend.app.core.config import Settings
 from backend.app.main import create_app
@@ -19,6 +22,7 @@ from backend.app.schemas.presentation import (
     AnalyticalPresentationResult,
     PresentationQueryResult,
 )
+from backend.app.schemas.presentation_artifact import PPTX_MIME_TYPE
 from backend.app.schemas.visualization import (
     DeterministicVisualizationResult,
     KPIVisualizationSpec,
@@ -31,6 +35,11 @@ from backend.app.services.insight_engine import GroundedInsightEngine
 from backend.app.services.llm_provider import (
     DeterministicMockLLMProvider,
     LLMProvider,
+)
+from backend.app.services.presentation_artifact_service import (
+    PresentationArtifactService,
+    PresentationArtifactSizeError,
+    create_presentation_artifact_service,
 )
 from backend.app.services.presentation_service import (
     AnalyticalPresentationService,
@@ -110,7 +119,7 @@ def _presentation_result() -> AnalyticalPresentationResult:
         query=PresentationQueryResult(
             validated_sql="SELECT approved_revenue FROM retail.orders",
             columns=("approved_revenue",),
-            rows=(("100.01",),),
+            rows=(("RAW-QUERY-ROW",),),
             row_count=1,
         ),
         visualizations=visualizations,
@@ -167,10 +176,15 @@ def _service() -> AnalyticalPresentationService:
 
 
 def test_openapi_documents_combined_presentation_endpoint() -> None:
-    operation = create_app().openapi()["paths"]["/api/v1/presentations/generate"]["post"]
+    paths = create_app().openapi()["paths"]
+    operation = paths["/api/v1/presentations/generate"]["post"]
+    export_operation = paths["/api/v1/presentations/export"]["post"]
 
     assert set(operation["responses"]) == {"200", "422", "503"}
     assert operation["requestBody"]["required"] is True
+    assert set(export_operation["responses"]) == {"200", "422", "503"}
+    assert export_operation["requestBody"]["required"] is True
+    assert PPTX_MIME_TYPE in export_operation["responses"]["200"]["content"]
 
 
 def test_generate_presentation_returns_safe_consolidated_result() -> None:
@@ -302,3 +316,161 @@ def test_unexpected_error_is_sanitized() -> None:
     assert response.json() == {"detail": "Presentation service is unavailable"}
     assert "private failure" not in response.text
     assert response.headers["cache-control"] == "no-store"
+
+
+def test_export_presentation_returns_openable_pptx_with_fixed_headers() -> None:
+    service = _service()
+    artifact_service_mock = Mock(
+        spec=PresentationArtifactService,
+        wraps=create_presentation_artifact_service(),
+    )
+    artifact_service = cast(
+        PresentationArtifactService,
+        artifact_service_mock,
+    )
+    application = _configured_application(service)
+
+    with TestClient(application) as client:
+        application.state.presentation_artifact_service = artifact_service
+        response = client.post(
+            "/api/v1/presentations/export",
+            json={"question": "Show approved revenue"},
+        )
+
+    presentation = Presentation(BytesIO(response.content))
+    with ZipFile(BytesIO(response.content)) as archive:
+        package_text = b"\n".join(
+            archive.read(member)
+            for member in archive.namelist()
+            if member.endswith((".xml", ".rels"))
+        )
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == PPTX_MIME_TYPE
+    assert response.headers["cache-control"] == "no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.headers["content-length"] == str(len(response.content))
+    assert response.headers["content-disposition"] == (
+        "attachment; filename="
+        '"analytical-presentation-'
+        f'{response.headers["x-presentation-artifact-id"]}.pptx"'
+    )
+    assert response.headers["x-presentation-artifact-version"] == "1"
+    assert response.headers["x-presentation-version"] == "1"
+    assert response.content.startswith(b"PK\x03\x04")
+    assert len(presentation.slides) > 0
+    assert b"SELECT approved_revenue" not in package_text
+    assert b"RAW-QUERY-ROW" not in package_text
+    service.generate.assert_called_once_with("Show approved revenue")
+    artifact_service_mock.build_pptx.assert_called_once_with(_presentation_result())
+
+
+@pytest.mark.parametrize(
+    "extra_field",
+    (
+        {"filename": "../unsafe.pptx"},
+        {"path": "/tmp/unsafe.pptx"},
+        {"format": "pptx"},
+    ),
+)
+def test_export_rejects_client_artifact_controls(
+    extra_field: dict[str, str],
+) -> None:
+    service = _service()
+    application = _configured_application(service)
+
+    with TestClient(application) as client:
+        response = client.post(
+            "/api/v1/presentations/export",
+            json={
+                "question": "Show approved revenue",
+                **extra_field,
+            },
+        )
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Presentation request is invalid"}
+    assert response.headers["cache-control"] == "no-store"
+    service.generate.assert_not_called()
+
+
+def test_export_fails_closed_without_artifact_service() -> None:
+    service = _service()
+    application = _configured_application(service)
+
+    with TestClient(application) as client:
+        del application.state.presentation_artifact_service
+        response = client.post(
+            "/api/v1/presentations/export",
+            json={"question": "Show approved revenue"},
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Presentation service is unavailable"}
+    assert response.headers["cache-control"] == "no-store"
+    service.generate.assert_not_called()
+
+
+def test_export_artifact_failure_is_sanitized() -> None:
+    service = _service()
+    artifact_service = Mock(spec=PresentationArtifactService)
+    artifact_service.build_pptx.side_effect = PresentationArtifactSizeError(
+        "private artifact failure"
+    )
+    application = _configured_application(service)
+
+    with TestClient(application) as client:
+        application.state.presentation_artifact_service = artifact_service
+        response = client.post(
+            "/api/v1/presentations/export",
+            json={"question": "Show approved revenue"},
+        )
+
+    assert response.status_code == 422
+    assert response.json() == {"detail": "Presentation could not be produced safely"}
+    assert "private artifact failure" not in response.text
+    assert response.headers["cache-control"] == "no-store"
+    service.generate.assert_called_once_with("Show approved revenue")
+    artifact_service.build_pptx.assert_called_once_with(_presentation_result())
+
+
+def test_export_unexpected_artifact_failure_is_sanitized() -> None:
+    service = _service()
+    artifact_service = Mock(spec=PresentationArtifactService)
+    artifact_service.build_pptx.side_effect = RuntimeError("private runtime failure")
+    application = _configured_application(service)
+
+    with TestClient(application) as client:
+        application.state.presentation_artifact_service = artifact_service
+        response = client.post(
+            "/api/v1/presentations/export",
+            json={"question": "Show approved revenue"},
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Presentation service is unavailable"}
+    assert "private runtime failure" not in response.text
+    assert response.headers["cache-control"] == "no-store"
+    service.generate.assert_called_once_with("Show approved revenue")
+    artifact_service.build_pptx.assert_called_once_with(_presentation_result())
+
+
+def test_export_unexpected_pipeline_failure_is_sanitized() -> None:
+    service = _service()
+    service.generate.side_effect = RuntimeError("private pipeline failure")
+    artifact_service = Mock(spec=PresentationArtifactService)
+    application = _configured_application(service)
+
+    with TestClient(application) as client:
+        application.state.presentation_artifact_service = artifact_service
+        response = client.post(
+            "/api/v1/presentations/export",
+            json={"question": "Show approved revenue"},
+        )
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": "Presentation service is unavailable"}
+    assert "private pipeline failure" not in response.text
+    assert response.headers["cache-control"] == "no-store"
+    service.generate.assert_called_once_with("Show approved revenue")
+    artifact_service.build_pptx.assert_not_called()

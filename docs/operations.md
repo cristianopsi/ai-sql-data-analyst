@@ -47,8 +47,11 @@ python -m mypy backend frontend tests/unit/test_containerization.py tests/unit/t
 python -m pytest -q
 ```
 
-The current validated baseline is 680 passing tests without forbidden
-warnings.
+The current validated baseline is 725 passing tests without forbidden
+warnings, recorded by the local 1.11-E gate on Python 3.13.5. Branch-aware
+coverage combines statement and branch coverage; the existing 80% threshold
+is unchanged. This gate did not rerun dependency vulnerability or secret
+audits, container builds, or remote CI.
 
 ## Visualization integrity controls
 
@@ -63,7 +66,7 @@ previous values plus controlled absolute and percentage changes.
 Unexpected runtime failures from
 `POST /api/v1/visualizations/specify` fail closed as sanitized JSON with HTTP
 503 and `Cache-Control: no-store`; internal exception details are not returned.
-The validated branch-aware backend coverage baseline is 88.21%.
+The validated branch-aware backend coverage baseline is 88.28%.
 
 ## Grounded insight integrity controls
 
@@ -125,7 +128,7 @@ Run the 49 focused evaluation tests:
 .venv/bin/pytest -q tests/unit/evaluation
 ```
 
-The complete validated baseline contains 680 passing tests:
+The complete validated baseline contains 725 passing tests:
 
 ```bash
 .venv/bin/pytest -q
@@ -199,6 +202,100 @@ public results use a controlled four-decimal scale. Governed aggregation
 determines the downstream primary metric value. Temporal dimensions are parsed
 and chronologically ordered under their declared granularities. Summary,
 ranking, series, and source-row arithmetic invariants fail closed.
+
+## PowerPoint export
+
+`POST /api/v1/presentations/export` accepts only `{"question": "..."}` through
+the existing strict `PresentationRequest`. Client filename, path, format, SQL,
+rows, or artifact fields are rejected. There is no PPTX upload endpoint and no
+server-side artifact storage or overwrite operation.
+
+The endpoint first runs the controlled presentation pipeline, which may use
+PostgreSQL and the configured LLM provider. It then invokes the artifact service
+once with the internal result. Export is not a cached download of an earlier
+`/generate` response. Only the artifact-generation stage has no database,
+network, or LLM access and performs no filesystem writes or temporary-file
+creation. Client-side saving of the response is outside that server contract.
+
+### Content, limits, and identity
+
+The pinned dependency is `python-pptx==1.0.2`. The generator revalidates nested
+schemas and matching source versions and row counts. It renders existing
+deterministic KPI values, native table shapes, and vector bar and line shapes,
+plus grounded narrative, evidence identifiers, and source metadata. Layout
+scaling does not recalculate analytical metrics. Native chart workbooks,
+external images, macros, OLE objects, and embedded files are not supported.
+
+The maximum output is 20 slides and 5,242,880 bytes (5 MiB). The byte limit is
+checked on serialized output; it is not a hard peak-memory budget. All bytes are
+built and validated before the streaming response begins.
+
+The server selects `analytical-presentation-[0-9a-f]{24}.pptx`. The 24-hex
+identifier is derived from SHA-256 over semantic content, not the serialized
+file. Equivalent content has stable semantic identity; byte-for-byte equality
+across environments is not part of the contract.
+
+### Download response
+
+A successful download returns HTTP 200 with:
+
+- `Content-Type: application/vnd.openxmlformats-officedocument.presentationml.presentation`;
+- `Content-Disposition: attachment` with the server-generated filename;
+- `Content-Length`;
+- `Cache-Control: no-store`;
+- `X-Content-Type-Options: nosniff`;
+- `X-Presentation-Artifact-Id` and `X-Presentation-Artifact-Version`;
+- `X-Presentation-Version`, `X-Insight-Version`, `X-Visualization-Version`,
+  `X-Analytics-Version`, and `X-Execution-Version`.
+
+Invalid requests, controlled unsafe results, and artifact limit violations
+return sanitized JSON with HTTP 422. Missing managed dependencies and unexpected
+runtime failures return sanitized JSON with HTTP 503. Error responses retain
+`Cache-Control: no-store` and do not return internal exception details.
+
+### Package validation and privacy
+
+Validation occurs in memory without ZIP extraction. It checks an explicit
+member allowlist, unique names, XML roots, content types, and permitted
+relationship types. It rejects encrypted members, path traversal, backslash
+member names, malformed XML, document types and entities, macros, OLE/action
+content, and embedded packages. Internal relationship targets must resolve to
+existing allowed parts without escaping the package. Legitimate relative
+references between OOXML parts remain supported. External targets and dangling
+relationships are rejected. Package expansion is bounded to 20 MiB and the
+member count to 256.
+
+The installed template has two permitted auxiliaries with pinned content
+hashes: `docProps/thumbnail.jpeg` and
+`ppt/printerSettings/printerSettings1.bin`. They are not user-selected images
+or arbitrary binary attachments; the thumbnail is not a rendered slide image.
+
+The artifact excludes raw or validated SQL, raw query rows, grounding context,
+prompts, and raw provider responses. Visible text is also checked against
+configured SQL and external-URL patterns. This conservative filter can reject
+otherwise innocent text and is not a general-purpose secret detector.
+
+These restrictions apply to the export projection. The existing
+`/presentations/generate` JSON and frontend still expose validated SQL and
+projected query rows. Qualitative insight text remains provider-authored;
+provenance and numeric checks do not independently establish its truth.
+
+### Validation evidence and remaining checks
+
+The local 1.11-E regression gate passed the full suite, including 30 artifact tests
+and 118 presentation-focused tests. These subsets must not be added to the
+full-suite count. The separate original D3 matrix passed all 65 cases after
+D4-R1, including inert mutations of the internal OOXML validator. Those cases
+do not test a public upload endpoint.
+
+Opening was verified with `Presentation(BytesIO(...))`, not with desktop
+PowerPoint or LibreOffice. Visual application compatibility, remote CI, and
+container checks for the exporter changes remain pending. The API integration
+does not add a frontend download control.
+
+If export returns 422, check the controlled request and artifact limits without
+disabling validation. If it returns 503, inspect managed-service readiness and
+sanitized operational diagnostics; do not expose raw provider data or secrets.
 
 ## Troubleshooting
 

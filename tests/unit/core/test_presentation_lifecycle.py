@@ -16,6 +16,9 @@ from backend.app.services.llm_provider import (
     DeterministicMockLLMProvider,
     LLMProvider,
 )
+from backend.app.services.presentation_artifact_service import (
+    PresentationArtifactService,
+)
 from backend.app.services.presentation_service import (
     AnalyticalPresentationService,
 )
@@ -88,9 +91,17 @@ def test_lifespan_publishes_presentation_service() -> None:
     )
 
     assert not hasattr(application.state, "presentation_service")
+    assert not hasattr(
+        application.state,
+        "presentation_artifact_service",
+    )
 
     with TestClient(application):
         assert application.state.presentation_service is service
+        assert isinstance(
+            application.state.presentation_artifact_service,
+            PresentationArtifactService,
+        )
         assert factory_calls == 1
         assert captured_dependencies == (
             application.state.sql_generation_pipeline,
