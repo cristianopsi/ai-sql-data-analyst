@@ -62,6 +62,7 @@ from backend.app.services.visualization_engine import (
     VisualizationEngineFactory,
     create_visualization_engine,
 )
+from backend.app.core.observability import log_lifecycle_event
 
 type FastAPILifespan = Callable[
     [FastAPI],
@@ -121,6 +122,7 @@ def create_database_lifespan(
         application: FastAPI,
     ) -> AsyncIterator[None]:
         application.state.database_ready = False
+        log_lifecycle_event("lifecycle.startup", stage="init")
 
         schema_catalog_cache = catalog_cache_factory(settings)
         application.state.schema_catalog_cache = schema_catalog_cache
@@ -192,6 +194,7 @@ def create_database_lifespan(
             await run_in_threadpool(pools.open)
             pools_opened = True
             application.state.database_ready = True
+            log_lifecycle_event("lifecycle.ready", stage="database", pools_opened=True)
 
             yield
         finally:
@@ -199,6 +202,7 @@ def create_database_lifespan(
 
             try:
                 if pools_opened and pools is not None:
+                    log_lifecycle_event("lifecycle.shutdown", stage="database")
                     await run_in_threadpool(pools.close)
             finally:
                 await run_in_threadpool(llm_provider.close)
