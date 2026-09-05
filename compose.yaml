@@ -66,6 +66,10 @@ services:
       API_PORT: "8000"
       DATABASE_URL: "postgresql+psycopg://${APP_DATABASE_USER:?required}:${APP_DATABASE_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-ai_sql_data_analyst}"
       ANALYTICS_DATABASE_URL: "postgresql+psycopg://${ANALYTICS_DATABASE_USER:?required}:${ANALYTICS_DATABASE_PASSWORD:?required}@postgres:5432/${POSTGRES_DB:-ai_sql_data_analyst}"
+      AUTH_ENABLED: "false"
+      OIDC_ISSUER: ""
+      OIDC_AUDIENCE: ""
+      OIDC_JWKS_URL: ""
 
     command:
       - uvicorn
@@ -119,6 +123,10 @@ services:
       API_BASE_URL: http://backend:8000
       FRONTEND_HOST: 0.0.0.0
       FRONTEND_PORT: "8501"
+      AUTH_ENABLED: "false"
+      OIDC_ISSUER: ""
+      OIDC_AUDIENCE: ""
+      OIDC_JWKS_URL: ""
 
     command:
       - streamlit

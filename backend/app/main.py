@@ -22,6 +22,7 @@ from backend.app.core.lifecycle import (
     create_database_lifespan,
 )
 from backend.app.core.observability import ObservabilityMiddleware, configure_logger
+from backend.app.core.auth import AuthConfig, AuthMiddleware
 from backend.app.db.pools import create_database_pools
 from backend.app.services.analytics_engine import (
     AnalyticsEngineFactory,
@@ -128,6 +129,15 @@ def create_app(
         allow_methods=["GET", "POST"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )
+    
+    auth_config = AuthConfig(
+        enabled=resolved_settings.auth_enabled,
+        issuer=resolved_settings.oidc_issuer,
+        audience=resolved_settings.oidc_audience,
+        jwks_url=resolved_settings.oidc_jwks_url,
+        jwks_cache_ttl_seconds=resolved_settings.oidc_jwks_cache_ttl_seconds,
+    )
+    application.add_middleware(AuthMiddleware, config=auth_config)
 
     application.include_router(health_router)
     application.include_router(catalog_router)

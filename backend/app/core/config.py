@@ -11,6 +11,13 @@ LogFormat = Literal["json", "console"]
 
 
 class Settings(BaseSettings):
+    # Auth / OIDC
+    auth_enabled: bool = True
+    oidc_issuer: str = ""
+    oidc_audience: str = ""
+    oidc_jwks_url: str = ""
+    oidc_jwks_cache_ttl_seconds: int = 3600
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

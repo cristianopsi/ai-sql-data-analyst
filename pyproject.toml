@@ -52,6 +52,8 @@ dependencies = [
     "streamlit>=1.45,<2",
     "structlog>=24,<27",
     "uvicorn[standard]>=0.35,<1",
+    "pyjwt>=2.8,<3",
+    "cryptography>=43",
 ]
 
 [project.optional-dependencies]
