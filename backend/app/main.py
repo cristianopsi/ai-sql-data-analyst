@@ -15,6 +15,7 @@ from backend.app.api.sql_generation import (
     router as sql_generation_router,
 )
 from backend.app.api.visualization import router as visualization_router
+from backend.app.core.auth import AuthConfig, AuthMiddleware
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.lifecycle import (
     DatabasePoolFactory,
@@ -22,7 +23,6 @@ from backend.app.core.lifecycle import (
     create_database_lifespan,
 )
 from backend.app.core.observability import ObservabilityMiddleware, configure_logger
-from backend.app.core.auth import AuthConfig, AuthMiddleware
 from backend.app.db.pools import create_database_pools
 from backend.app.services.analytics_engine import (
     AnalyticsEngineFactory,
@@ -129,7 +129,7 @@ def create_app(
         allow_methods=["GET", "POST"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
     )
-    
+
     auth_config = AuthConfig(
         enabled=resolved_settings.auth_enabled,
         issuer=resolved_settings.oidc_issuer,
