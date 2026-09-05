@@ -15,7 +15,7 @@ Usage:
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from enum import StrEnum
 
 from fastapi import HTTPException, Request
@@ -34,7 +34,7 @@ class Role(StrEnum):
 
 def require_roles(
     allowed_roles: set[Role],
-) -> Callable[[Request], CurrentUser | None]:
+) -> Callable[[Request], Awaitable[CurrentUser | None]]:
     """Create a FastAPI dependency that checks user roles.
 
     Args:
@@ -51,7 +51,7 @@ def require_roles(
     """
 
     async def dependency(request: Request) -> CurrentUser | None:
-        user = getattr(request.state, "current_user", None)
+        user: CurrentUser | None = getattr(request.state, "current_user", None)
         if user is None:
             return None
         user_roles = set(user.roles)
