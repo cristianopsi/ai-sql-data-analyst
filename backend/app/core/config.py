@@ -12,7 +12,7 @@ LogFormat = Literal["json", "console"]
 
 class Settings(BaseSettings):
     # Auth / OIDC
-    auth_enabled: bool = True
+    auth_enabled: bool = False
     oidc_issuer: str = ""
     oidc_audience: str = ""
     oidc_jwks_url: str = ""

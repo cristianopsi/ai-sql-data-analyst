@@ -32,7 +32,7 @@ from starlette.responses import JSONResponse, Response
 ALLOWED_ALGORITHMS = ["RS256"]
 BEARER_PREFIX = "Bearer "
 DEFAULT_JWKS_CACHE_TTL_SECONDS = 3600
-DEFAULT_EXEMPT_PATHS = frozenset({"/health", "/ready"})
+DEFAULT_EXEMPT_PATHS = frozenset({"/health", "/ready", "/docs", "/openapi.json", "/redoc"})
 
 # ---------------------------------------------------------------------------
 # Models
