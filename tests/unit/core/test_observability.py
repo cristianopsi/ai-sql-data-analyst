@@ -69,6 +69,7 @@ class TestCorrelationId:
             )
             assert response.headers[CORRELATION_ID_HEADER] == client_id
 
+
 class TestSecretRedaction:
     @pytest.mark.parametrize(
         "key",
@@ -113,6 +114,7 @@ class TestSecretRedaction:
         assert result["outer"]["safe"] == "visible"
         assert result["api_key"] == "[REDACTED]"
 
+
 class TestRequestMetrics:
     def test_total_latency_is_positive(self) -> None:
         metrics = RequestMetrics("test-id")
@@ -133,6 +135,7 @@ class TestRequestMetrics:
         assert result["correlation_id"] == "corr-123"
         assert "total_latency_ms" in result
         assert "stages" in result
+
 
 class TestStructuredLogging:
     def test_json_output_contains_no_secrets(

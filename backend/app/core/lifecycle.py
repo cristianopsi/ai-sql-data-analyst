@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from starlette.concurrency import run_in_threadpool
 
 from backend.app.core.config import Settings
+from backend.app.core.observability import log_lifecycle_event
 from backend.app.db.pools import DatabasePools
 from backend.app.services.analytics_engine import (
     AnalyticsEngineFactory,
@@ -62,7 +63,6 @@ from backend.app.services.visualization_engine import (
     VisualizationEngineFactory,
     create_visualization_engine,
 )
-from backend.app.core.observability import log_lifecycle_event
 
 type FastAPILifespan = Callable[
     [FastAPI],

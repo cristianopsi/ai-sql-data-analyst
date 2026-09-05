@@ -46,6 +46,7 @@ _REDACTED_VALUE = "[REDACTED]"
 
 _logger: structlog.stdlib.BoundLogger | None = None
 
+
 def configure_logger(
     *,
     log_level: str = "INFO",
@@ -82,15 +83,18 @@ def configure_logger(
         _logger.setLevel(numeric_level)
     return _logger
 
+
 def get_audit_logger() -> structlog.stdlib.BoundLogger:
     """Return the configured audit logger, configuring if needed."""
     if _logger is None:
         return configure_logger()
     return _logger
 
+
 # ---------------------------------------------------------------------------
 # Secret redaction
 # ---------------------------------------------------------------------------
+
 
 def _redact_sensitive_processor(
     _logger: Any,  # noqa: ANN401
@@ -108,6 +112,7 @@ def _redact_sensitive_processor(
             redacted[key] = value
     return redacted
 
+
 def _redact_dict_recursive(data: dict[str, Any]) -> dict[str, Any]:
     """Recursively redact sensitive keys in nested dictionaries."""
     result: dict[str, Any] = {}
@@ -120,25 +125,31 @@ def _redact_dict_recursive(data: dict[str, Any]) -> dict[str, Any]:
             result[key] = value
     return result
 
+
 def redact_secrets(data: dict[str, Any]) -> dict[str, Any]:
     """Public API for redacting sensitive keys from a dictionary."""
     return _redact_dict_recursive(data)
+
 
 # ---------------------------------------------------------------------------
 # Correlation ID
 # ---------------------------------------------------------------------------
 
+
 def generate_correlation_id() -> str:
     """Generate a new correlation ID (UUID4 without dashes for compactness)."""
     return uuid.uuid4().hex
+
 
 def get_correlation_id(request: Request) -> str | None:
     """Extract correlation ID from request headers."""
     return request.headers.get(CORRELATION_ID_HEADER)
 
+
 # ---------------------------------------------------------------------------
 # Metrics
 # ---------------------------------------------------------------------------
+
 
 class RequestMetrics:
     """Collect metrics for a single request lifecycle."""
@@ -174,9 +185,11 @@ class RequestMetrics:
             "stages": dict(self.stages),
         }
 
+
 # ---------------------------------------------------------------------------
 # Middleware
 # ---------------------------------------------------------------------------
+
 
 class ObservabilityMiddleware(BaseHTTPMiddleware):
     """Middleware that generates correlation IDs and logs audit events."""
@@ -222,9 +235,11 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
 
         return response
 
+
 # ---------------------------------------------------------------------------
 # Lifecycle audit helpers
 # ---------------------------------------------------------------------------
+
 
 def log_lifecycle_event(
     event: str,

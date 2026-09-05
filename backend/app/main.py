@@ -1,7 +1,5 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from backend.app.core.observability import ObservabilityMiddleware
-from backend.app.core.observability import configure_logger
 
 from backend.app import __version__
 from backend.app.api.analytics import router as analytics_router
@@ -23,6 +21,7 @@ from backend.app.core.lifecycle import (
     PresentationServiceFactory,
     create_database_lifespan,
 )
+from backend.app.core.observability import ObservabilityMiddleware, configure_logger
 from backend.app.db.pools import create_database_pools
 from backend.app.services.analytics_engine import (
     AnalyticsEngineFactory,
@@ -116,7 +115,6 @@ def create_app(
     application.state.settings = resolved_settings
     application.state.database_ready = False
 
-   
     configure_logger(
         log_level=resolved_settings.log_level,
         log_format=resolved_settings.log_format,
