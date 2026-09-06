@@ -91,6 +91,8 @@ services:
       CLOUD_SQL_DATABASE: ""
       CLOUD_SQL_USER: ""
       CLOUD_SQL_PASSWORD: ""
+      # Secret Manager
+      SECRET_MANAGER_ENABLED: "false"
       # CORS
       CORS_ORIGINS: "http://localhost:8501"
 
