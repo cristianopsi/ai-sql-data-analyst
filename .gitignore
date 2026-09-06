@@ -70,3 +70,4 @@ Thumbs.db
 # Docker local bind-mount data
 .docker-data/
 postgres_data/
+.cloud-sql/
