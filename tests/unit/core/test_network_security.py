@@ -10,9 +10,13 @@ class TestCloudSQLConfig:
         settings = Settings()
         assert settings.cloud_sql_connector_enabled is False
 
-    def test_cloud_sql_host_empty_by_default(self) -> None:
+    def test_cloud_sql_app_user_empty_by_default(self) -> None:
         settings = Settings()
-        assert settings.cloud_sql_host == ""
+        assert settings.cloud_sql_app_user == ""
+
+    def test_cloud_sql_analytics_user_empty_by_default(self) -> None:
+        settings = Settings()
+        assert settings.cloud_sql_analytics_user == ""
 
     def test_cloud_sql_instance_empty_by_default(self) -> None:
         settings = Settings()
@@ -22,25 +26,28 @@ class TestCloudSQLConfig:
         settings = Settings()
         assert settings.cloud_sql_database == ""
 
-    def test_cloud_sql_user_empty_by_default(self) -> None:
+    def test_cloud_sql_app_password_empty_by_default(self) -> None:
         settings = Settings()
-        assert settings.cloud_sql_user == ""
+        assert settings.cloud_sql_app_password == ""
 
-    def test_cloud_sql_password_empty_by_default(self) -> None:
+    def test_cloud_sql_analytics_password_empty_by_default(self) -> None:
         settings = Settings()
-        assert settings.cloud_sql_password == ""
+        assert settings.cloud_sql_analytics_password == ""
 
     def test_cloud_sql_enabled_when_set(self) -> None:
         settings = Settings(
             cloud_sql_connector_enabled=True,
-            cloud_sql_host="10.20.30.40",
             cloud_sql_instance="ai-sql-data-analyst-prod:southamerica-east1:retail-db",
             cloud_sql_database="retail_analytics",
-            cloud_sql_user="analyst",
-            cloud_sql_password="secret",
+            cloud_sql_app_user="ai_sql_app",
+            cloud_sql_app_password="secret_app",
+            cloud_sql_analytics_user="analytics",
+            cloud_sql_analytics_password="secret_analytics",
         )
         assert settings.cloud_sql_connector_enabled is True
         assert "southamerica-east1" in settings.cloud_sql_instance
+        assert settings.cloud_sql_app_user == "ai_sql_app"
+        assert settings.cloud_sql_analytics_user == "analytics"
 
 
 class TestCORSConfig:

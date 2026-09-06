@@ -70,20 +70,24 @@ def _create_pool(
     variable_name: str,
     pool_name: str,
     settings: Settings,
+    *,
+    cloud_sql_user: str = "",
+    cloud_sql_password: str = "",
 ) -> RuntimeConnectionPool:
     """Build an unopened psycopg ConnectionPool.
 
     When cloud_sql_connector_enabled is True, connect to Cloud SQL
-    via public IP with SSL required, bypassing the local DATABASE_URL.
+    via Unix socket (Cloud Run native integration), using per-pool
+    credentials. No SSL certs needed — auth via service account.
     """
     if settings.cloud_sql_connector_enabled:
+        socket_path = f"/cloudsql/{settings.cloud_sql_instance}"
         conninfo = (
-            f"host={settings.cloud_sql_host} "
+            f"host={socket_path} "
             f"port=5432 "
             f"dbname={settings.cloud_sql_database} "
-            f"user={settings.cloud_sql_user} "
-            f"password={settings.cloud_sql_password} "
-            f"sslmode=require"
+            f"user={cloud_sql_user} "
+            f"password={cloud_sql_password} "
         )
     else:
         conninfo = normalize_database_url(database_url, variable_name)
@@ -107,14 +111,17 @@ def create_database_pools(
         "DATABASE_URL",
         "application-database",
         settings,
+        cloud_sql_user=settings.cloud_sql_app_user,
+        cloud_sql_password=settings.cloud_sql_app_password,
     )
     analytics_pool = _create_pool(
         settings.analytics_database_url,
         "ANALYTICS_DATABASE_URL",
         "analytics-database",
         settings,
+        cloud_sql_user=settings.cloud_sql_analytics_user,
+        cloud_sql_password=settings.cloud_sql_analytics_password,
     )
-
     return DatabasePools(
         application=application_pool,
         analytics=analytics_pool,

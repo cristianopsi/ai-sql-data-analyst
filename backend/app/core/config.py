@@ -38,11 +38,12 @@ class Settings(BaseSettings):
 
     # Cloud SQL
     cloud_sql_connector_enabled: bool = False
-    cloud_sql_host: str = ""
     cloud_sql_instance: str = ""
     cloud_sql_database: str = ""
-    cloud_sql_user: str = ""
-    cloud_sql_password: str = ""
+    cloud_sql_app_user: str = ""
+    cloud_sql_app_password: str = ""
+    cloud_sql_analytics_user: str = ""
+    cloud_sql_analytics_password: str = ""
 
     # Secret Manager
     secret_manager_enabled: bool = False
