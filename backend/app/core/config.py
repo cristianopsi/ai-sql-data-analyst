@@ -27,6 +27,15 @@ class Settings(BaseSettings):
     rate_limit_admin_per_minute: int = 60
     rate_limit_admin_per_day: int = 10000
 
+    # Plans and quotas
+    plans_enabled: bool = False
+    plan_free_max_dataset_rows: int = 1000
+    plan_free_daily_token_budget: int = 10000
+    plan_paid_max_dataset_rows: int = 100000
+    plan_paid_daily_token_budget: int = 100000
+    plan_admin_max_dataset_rows: int = 1000000
+    plan_admin_daily_token_budget: int = 1000000
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

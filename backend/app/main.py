@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app import __version__
 from backend.app.api.analytics import router as analytics_router
+from backend.app.api.billing import router as billing_router
 from backend.app.api.catalog import router as catalog_router
 from backend.app.api.grounding import router as grounding_router
 from backend.app.api.health import router as health_router
@@ -147,6 +148,10 @@ def create_app(
         jwks_cache_ttl_seconds=resolved_settings.oidc_jwks_cache_ttl_seconds,
     )
     application.add_middleware(AuthMiddleware, config=auth_config)
+
+    # Public (no auth required)
+    application.include_router(health_router)
+    application.include_router(billing_router)
 
     application.include_router(health_router)
 
