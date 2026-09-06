@@ -26,6 +26,8 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.requests import Request
 from starlette.responses import Response
 
+from backend.app.core.tenant import get_tenant_id
+
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -203,6 +205,8 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
         structlog.contextvars.clear_contextvars()
         structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
 
+        tenant_id = get_tenant_id(request)  # NOVO — extrair uma vez
+
         logger = get_audit_logger()
         metrics = RequestMetrics(correlation_id)
 
@@ -210,6 +214,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             "request.started",
             method=request.method,
             path=request.url.path,
+            tenant_id=tenant_id,
         )
 
         try:
@@ -220,6 +225,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
                 method=request.method,
                 path=request.url.path,
                 latency_ms=metrics.total_latency_ms(),
+                tenant_id=tenant_id,
             )
             raise
 
@@ -231,6 +237,7 @@ class ObservabilityMiddleware(BaseHTTPMiddleware):
             path=request.url.path,
             status_code=response.status_code,
             latency_ms=metrics.total_latency_ms(),
+            tenant_id=tenant_id,
         )
 
         return response
