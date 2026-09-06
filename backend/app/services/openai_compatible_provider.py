@@ -52,6 +52,7 @@ DEFAULT_OPENAI_COMPATIBLE_BASE_URLS: dict[
     "gemini": ("https://generativelanguage.googleapis.com/v1beta/openai"),
     "groq": "https://api.groq.com/openai/v1",
     "openrouter": "https://openrouter.ai/api/v1",
+    "deepseek": "https://api.deepseek.com",
 }
 
 

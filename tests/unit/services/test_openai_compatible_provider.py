@@ -415,10 +415,11 @@ def test_factory_uses_official_default_base_urls() -> None:
         provider_name,
         expected_base_url,
     ) in DEFAULT_OPENAI_COMPATIBLE_BASE_URLS.items():
+        model_name = "deepseek-v4-flash" if provider_name == "deepseek" else "controlled-model"
         provider = create_openai_compatible_provider(
             Settings(
                 llm_provider=provider_name,
-                llm_model="controlled-model",
+                llm_model=model_name,
                 llm_api_key="not-a-real-key",
             ),
             client=httpx.Client(
