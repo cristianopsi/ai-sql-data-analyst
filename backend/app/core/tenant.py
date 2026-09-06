@@ -15,6 +15,7 @@ from starlette.requests import Request
 
 from backend.app.core.auth import CurrentUser
 
+
 def get_tenant_id(request: Request) -> str | None:
     """Extract tenant_id from the authenticated user on the request.
 

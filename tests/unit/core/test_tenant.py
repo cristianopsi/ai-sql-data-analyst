@@ -10,11 +10,11 @@ Validates:
 
 from __future__ import annotations
 
-import pytest
 from starlette.requests import Request
 
 from backend.app.core.auth import CurrentUser
 from backend.app.core.tenant import get_tenant_id
+
 
 def _make_request(user: CurrentUser | None) -> Request:
     """Create a Request with optional current_user in state."""
@@ -29,6 +29,7 @@ def _make_request(user: CurrentUser | None) -> Request:
     if user is not None:
         request.state.current_user = user
     return request
+
 
 class TestGetTenantId:
     def test_returns_sub_when_authenticated(self) -> None:
