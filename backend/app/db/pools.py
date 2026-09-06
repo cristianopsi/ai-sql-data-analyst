@@ -71,19 +71,29 @@ def _create_pool(
     pool_name: str,
     settings: Settings,
 ) -> RuntimeConnectionPool:
-    connection_info = normalize_database_url(
-        database_url,
-        variable_name,
-    )
+    """Build an unopened psycopg ConnectionPool.
+
+    When cloud_sql_connector_enabled is True, connect to Cloud SQL
+    via public IP with SSL required, bypassing the local DATABASE_URL.
+    """
+    if settings.cloud_sql_connector_enabled:
+        conninfo = (
+            f"host={settings.cloud_sql_host} "
+            f"port=5432 "
+            f"dbname={settings.cloud_sql_database} "
+            f"user={settings.cloud_sql_user} "
+            f"password={settings.cloud_sql_password} "
+            f"sslmode=require"
+        )
+    else:
+        conninfo = normalize_database_url(database_url, variable_name)
 
     return ConnectionPool(
-        conninfo=connection_info,
+        conninfo=conninfo,
+        name=pool_name,
         min_size=settings.database_pool_min_size,
         max_size=settings.database_pool_max_size,
         timeout=settings.database_pool_timeout_seconds,
-        kwargs={"connect_timeout": (settings.database_connect_timeout_seconds)},
-        check=ConnectionPool.check_connection,
-        name=pool_name,
         open=False,
     )
 

@@ -36,6 +36,14 @@ class Settings(BaseSettings):
     plan_admin_max_dataset_rows: int = 1000000
     plan_admin_daily_token_budget: int = 1000000
 
+    # Cloud SQL
+    cloud_sql_connector_enabled: bool = False
+    cloud_sql_host: str = ""
+    cloud_sql_instance: str = ""
+    cloud_sql_database: str = ""
+    cloud_sql_user: str = ""
+    cloud_sql_password: str = ""
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",

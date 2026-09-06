@@ -84,6 +84,15 @@ services:
       PLAN_PAID_DAILY_TOKEN_BUDGET: "100000"
       PLAN_ADMIN_MAX_DATASET_ROWS: "1000000"
       PLAN_ADMIN_DAILY_TOKEN_BUDGET: "1000000"
+      # Cloud SQL
+      CLOUD_SQL_CONNECTOR_ENABLED: "false"
+      CLOUD_SQL_HOST: ""
+      CLOUD_SQL_INSTANCE: ""
+      CLOUD_SQL_DATABASE: ""
+      CLOUD_SQL_USER: ""
+      CLOUD_SQL_PASSWORD: ""
+      # CORS
+      CORS_ORIGINS: "http://localhost:8501"
 
     command:
       - uvicorn
