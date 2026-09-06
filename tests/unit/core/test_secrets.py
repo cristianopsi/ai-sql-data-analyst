@@ -78,7 +78,6 @@ class TestValidateSecrets:
     def test_validate_returns_empty_when_disabled_regardless_of_env(
         self, monkeypatch: object
     ) -> None:
-        import os
 
         # Clear all secret env vars
         for var in ("LLM_API_KEY", "DATABASE_URL", "ANALYTICS_DATABASE_URL"):
