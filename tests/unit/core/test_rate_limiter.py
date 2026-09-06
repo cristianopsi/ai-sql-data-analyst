@@ -27,7 +27,7 @@ from backend.app.core.rate_limiter import (
 class TestRateLimitConfig:
     def test_frozen(self) -> None:
         config = RateLimitConfig(per_minute=10, per_day=100)
-        with pytest.raises(Exception):
+        with pytest.raises((AttributeError, TypeError)):
             config.per_minute = 20
 
     def test_values(self) -> None:

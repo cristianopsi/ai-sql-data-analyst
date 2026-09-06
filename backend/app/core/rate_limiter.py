@@ -18,7 +18,11 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 from fastapi import HTTPException, Request, Response
+from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
+
+from backend.app.core.auth import CurrentUser
+from backend.app.core.tenant import get_tenant_id
 
 
 @dataclass(frozen=True)
@@ -148,7 +152,7 @@ def _get_client_ip(request: Request) -> str:
     return "unknown"
 
 
-class RateLimitMiddleware:
+class RateLimitMiddleware(BaseHTTPMiddleware):
     """Middleware that enforces rate limiting on non-exempt paths.
 
     Uses tenant_id when auth is active, falls back to client IP.
@@ -157,9 +161,11 @@ class RateLimitMiddleware:
 
     def __init__(
         self,
+        app: ASGIApp,
         rate_limiter: RateLimiter,
         enabled: bool = True,
     ) -> None:
+        super().__init__(app)
         self._limiter = rate_limiter
         self._enabled = enabled
 
@@ -176,15 +182,9 @@ class RateLimitMiddleware:
         if path in EXEMPT_PATHS:
             return await call_next(request)
 
-        # Try tenant_id first, fall back to IP
-        from backend.app.core.tenant import get_tenant_id
-
         tenant_id = get_tenant_id(request)
+
         key = tenant_id if tenant_id else _get_client_ip(request)
-
-        # Get roles from current_user if available
-        from backend.app.core.auth import CurrentUser
-
         user: CurrentUser | None = getattr(request.state, "current_user", None)
         roles = user.roles if user else []
 
