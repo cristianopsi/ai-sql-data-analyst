@@ -9,7 +9,6 @@ from fastapi import (
 from fastapi.responses import JSONResponse
 from starlette.concurrency import run_in_threadpool
 
-from backend.app.core.roles import Role, require_roles
 from backend.app.schemas.sql_generation import (
     SQLGenerationApiErrorDetail,
     SQLGenerationApiErrorResponse,
@@ -70,7 +69,6 @@ def _error_response(
         },
     },
     summary="Generate validated read-only SQL",
-    dependencies=[Depends(require_roles({Role.FREE_USER, Role.PAID_USER, Role.ADMIN}))],
 )
 async def generate_sql(
     payload: SQLGenerationRequest,

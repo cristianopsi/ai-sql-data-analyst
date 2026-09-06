@@ -17,7 +17,6 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
-from backend.app.core.roles import Role, require_roles
 from backend.app.schemas.analytics import (
     AnalyticsApiErrorDetail,
     AnalyticsApiErrorResponse,
@@ -145,7 +144,6 @@ def _generate_execute_analyze(
         },
     },
     summary="Generate, execute, and analyze a governed question",
-    dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
 )
 async def analyze_question(
     payload: AnalyticsRequest,

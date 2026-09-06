@@ -10,7 +10,6 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
-from backend.app.core.roles import Role, require_roles
 from backend.app.schemas.presentation import (
     AnalyticalPresentationResult,
     PresentationApiErrorResponse,
@@ -220,7 +219,6 @@ async def _generate_result(
         },
     },
     summary="Generate one complete analytical presentation",
-    dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
 )
 async def generate_presentation(
     payload: PresentationRequest,

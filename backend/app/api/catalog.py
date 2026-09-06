@@ -1,4 +1,3 @@
-from backend.app.core.roles import Role, require_roles
 from hashlib import sha256
 from typing import cast
 
@@ -67,7 +66,6 @@ def _unavailable_response() -> JSONResponse:
         },
     },
     summary="Get the safe SQL schema catalog",
-    @router.get("/catalog", response_model=CatalogResponse, dependencies=[Depends(require_roles({Role.FREE_USER, Role.PAID_USER, Role.ADMIN}))]),
 )
 def get_schema_catalog(
     request: Request,

@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app import __version__
@@ -23,6 +23,7 @@ from backend.app.core.lifecycle import (
     create_database_lifespan,
 )
 from backend.app.core.observability import ObservabilityMiddleware, configure_logger
+from backend.app.core.roles import Role, require_roles
 from backend.app.db.pools import create_database_pools
 from backend.app.services.analytics_engine import (
     AnalyticsEngineFactory,
@@ -140,15 +141,42 @@ def create_app(
     application.add_middleware(AuthMiddleware, config=auth_config)
 
     application.include_router(health_router)
-    application.include_router(catalog_router)
-    application.include_router(grounding_router)
-    application.include_router(sql_generation_router)
-    application.include_router(query_execution_router)
-    application.include_router(analytics_router)
-    application.include_router(visualization_router)
-    application.include_router(insights_router)
-    application.include_router(presentation_router)
 
+    # Free tier (catalog, grounding, SQL generation)
+    application.include_router(
+        catalog_router,
+        dependencies=[Depends(require_roles({Role.FREE_USER, Role.PAID_USER, Role.ADMIN}))],
+    )
+    application.include_router(
+        grounding_router,
+        dependencies=[Depends(require_roles({Role.FREE_USER, Role.PAID_USER, Role.ADMIN}))],
+    )
+    application.include_router(
+        sql_generation_router,
+        dependencies=[Depends(require_roles({Role.FREE_USER, Role.PAID_USER, Role.ADMIN}))],
+    )
+
+    # Paid tier (query execution, analytics, visualization, insights, presentations)
+    application.include_router(
+        query_execution_router,
+        dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
+    )
+    application.include_router(
+        analytics_router,
+        dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
+    )
+    application.include_router(
+        visualization_router,
+        dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
+    )
+    application.include_router(
+        insights_router,
+        dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
+    )
+    application.include_router(
+        presentation_router,
+        dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
+    )
     return application
 
 

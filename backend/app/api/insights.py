@@ -9,7 +9,6 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
-from backend.app.core.roles import Role, require_roles
 from backend.app.schemas.analytics import DeterministicAnalyticsResult
 from backend.app.schemas.insights import (
     GroundedInsightRequest,
@@ -163,7 +162,6 @@ def _success_response(
         },
     },
     summary=("Generate grounded insights for a governed natural-language question"),
-    dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
 )
 async def generate_insights(
     payload: GroundedInsightRequest,

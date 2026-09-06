@@ -17,7 +17,6 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
-from backend.app.core.roles import Role, require_roles
 from backend.app.schemas.query_execution import (
     QueryExecutionApiErrorDetail,
     QueryExecutionApiErrorResponse,
@@ -125,7 +124,6 @@ def _generate_and_execute(
         },
     },
     summary="Generate and execute validated read-only SQL",
-    dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
 )
 async def execute_query(
     payload: QueryExecutionRequest,

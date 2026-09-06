@@ -18,7 +18,6 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
-from backend.app.core.roles import Role, require_roles
 from backend.app.schemas.analytics import (
     DeterministicAnalyticsResult,
 )
@@ -166,7 +165,6 @@ def _generate_execute_analyze_specify(
         },
     },
     summary=("Generate deterministic visualization specifications for a governed question"),
-    dependencies=[Depends(require_roles({Role.PAID_USER, Role.ADMIN}))],
 )
 async def specify_visualizations(
     payload: VisualizationRequest,

@@ -8,7 +8,6 @@ from fastapi import (
 )
 from fastapi.responses import JSONResponse
 
-from backend.app.core.roles import Role, require_roles
 from backend.app.schemas.grounding import (
     GroundingApiErrorDetail,
     GroundingApiErrorResponse,
@@ -65,7 +64,6 @@ def _error_response(
         },
     },
     summary="Build safe semantic context for a question",
-    dependencies=[Depends(require_roles({Role.FREE_USER, Role.PAID_USER, Role.ADMIN}))],
 )
 def create_grounding_context(
     payload: GroundingContextRequest,
