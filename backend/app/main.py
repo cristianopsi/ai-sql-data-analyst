@@ -23,6 +23,7 @@ from backend.app.core.lifecycle import (
     create_database_lifespan,
 )
 from backend.app.core.observability import ObservabilityMiddleware, configure_logger
+from backend.app.core.rate_limiter import RateLimiter, RateLimitMiddleware
 from backend.app.core.roles import Role, require_roles
 from backend.app.db.pools import create_database_pools
 from backend.app.services.analytics_engine import (
@@ -129,6 +130,13 @@ def create_app(
         allow_credentials=False,
         allow_methods=["GET", "POST"],
         allow_headers=["Authorization", "Content-Type", "X-Request-ID"],
+    )
+
+    rate_limiter = RateLimiter()
+    application.add_middleware(
+        RateLimitMiddleware,
+        rate_limiter=rate_limiter,
+        enabled=resolved_settings.rate_limit_enabled,
     )
 
     auth_config = AuthConfig(

@@ -18,6 +18,15 @@ class Settings(BaseSettings):
     oidc_jwks_url: str = ""
     oidc_jwks_cache_ttl_seconds: int = 3600
 
+    # Rate Limiting
+    rate_limit_enabled: bool = False
+    rate_limit_free_per_minute: int = 10
+    rate_limit_free_per_day: int = 100
+    rate_limit_paid_per_minute: int = 30
+    rate_limit_paid_per_day: int = 1000
+    rate_limit_admin_per_minute: int = 60
+    rate_limit_admin_per_day: int = 10000
+
     model_config = SettingsConfigDict(
         env_file=".env",
         env_file_encoding="utf-8",
