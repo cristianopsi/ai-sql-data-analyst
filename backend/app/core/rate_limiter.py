@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from fastapi import HTTPException, Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.status import HTTP_429_TOO_MANY_REQUESTS
+from starlette.types import ASGIApp
 
 from backend.app.core.auth import CurrentUser
 from backend.app.core.tenant import get_tenant_id
