@@ -29,7 +29,7 @@ class TestSecretMappings:
     def test_get_secret_mappings_returns_tuple(self) -> None:
         mappings = get_secret_mappings()
         assert isinstance(mappings, tuple)
-        assert len(mappings) == 4
+        assert len(mappings) == 5
 
     def test_get_secret_mappings_has_llm_api_key(self) -> None:
         mappings = get_secret_mappings()
@@ -43,19 +43,27 @@ class TestSecretMappings:
         db = [m for m in mappings if m.secret_name == "database-url"]
         assert len(db) == 1
         assert db[0].env_var == "DATABASE_URL"
-        assert db[0].required is True
+        assert db[0].required is False
 
     def test_get_secret_mappings_has_analytics_database_url(self) -> None:
         mappings = get_secret_mappings()
         analytics = [m for m in mappings if m.secret_name == "analytics-database-url"]
         assert len(analytics) == 1
         assert analytics[0].env_var == "ANALYTICS_DATABASE_URL"
-        assert analytics[0].required is True
+        assert analytics[0].required is False
 
-    def test_get_secret_mappings_has_cloud_sql_password_optional(self) -> None:
+    def test_get_secret_mappings_has_cloud_sql_app_password_optional(self) -> None:
         mappings = get_secret_mappings()
-        pwd = [m for m in mappings if m.secret_name == "cloud-sql-password"]
+        pwd = [m for m in mappings if m.secret_name == "cloud-sql-app-password"]
         assert len(pwd) == 1
+        assert pwd[0].env_var == "CLOUD_SQL_APP_PASSWORD"
+        assert pwd[0].required is False
+
+    def test_get_secret_mappings_has_cloud_sql_analytics_password_optional(self) -> None:
+        mappings = get_secret_mappings()
+        pwd = [m for m in mappings if m.secret_name == "cloud-sql-analytics-password"]
+        assert len(pwd) == 1
+        assert pwd[0].env_var == "CLOUD_SQL_ANALYTICS_PASSWORD"
         assert pwd[0].required is False
 
     def test_get_secret_names(self) -> None:
@@ -63,8 +71,9 @@ class TestSecretMappings:
         assert "llm-api-key" in names
         assert "database-url" in names
         assert "analytics-database-url" in names
-        assert "cloud-sql-password" in names
-        assert len(names) == 4
+        assert "cloud-sql-app-password" in names
+        assert "cloud-sql-analytics-password" in names
+        assert len(names) == 5
 
 
 class TestValidateSecrets:
@@ -94,8 +103,8 @@ class TestValidateSecrets:
         settings = Settings(secret_manager_enabled=True)
         missing = validate_secrets(settings)
         assert "LLM_API_KEY" in missing
-        assert "DATABASE_URL" in missing
-        assert "ANALYTICS_DATABASE_URL" in missing
+        assert "DATABASE_URL" not in missing
+        assert "ANALYTICS_DATABASE_URL" not in missing
 
     def test_validate_returns_empty_when_enabled_and_all_present(self, monkeypatch: object) -> None:
         monkeypatch.setenv("LLM_API_KEY", "test-key")  # type: ignore[attr-defined]
@@ -114,7 +123,8 @@ class TestValidateSecrets:
         monkeypatch.setenv(  # type: ignore[attr-defined]
             "ANALYTICS_DATABASE_URL", "postgresql://user:pass@host:5432/db"
         )
-        monkeypatch.delenv("CLOUD_SQL_PASSWORD", raising=False)  # type: ignore[attr-defined]
+        monkeypatch.delenv("CLOUD_SQL_APP_PASSWORD", raising=False)  # type: ignore[attr-defined]
+        monkeypatch.delenv("CLOUD_SQL_ANALYTICS_PASSWORD", raising=False)  # type: ignore[attr-defined]
 
         settings = Settings(secret_manager_enabled=True)
         missing = validate_secrets(settings)
@@ -128,8 +138,8 @@ class TestValidateSecrets:
         settings = Settings(secret_manager_enabled=True)
         missing = validate_secrets(settings)
         assert "LLM_API_KEY" not in missing
-        assert "DATABASE_URL" in missing
-        assert "ANALYTICS_DATABASE_URL" in missing
+        assert "DATABASE_URL" not in missing
+        assert "ANALYTICS_DATABASE_URL" not in missing
 
 
 class TestSecretManagerConfig:
