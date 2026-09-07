@@ -7,6 +7,9 @@ from decimal import Decimal, InvalidOperation
 
 from pydantic import BaseModel, ValidationError
 
+from backend.app.core.observability import (
+    get_audit_logger,
+)
 from backend.app.schemas.analytics import DeterministicAnalyticsResult
 from backend.app.schemas.insights import (
     GroundedInsightClaim,
@@ -323,7 +326,17 @@ class GroundedInsightEngine:
         if response.finish_reason != "stop":
             raise InsightProviderResponseError("Insight provider response was incomplete")
 
-        proposal = _parse_proposal(response.content)
+        try:
+            proposal = _parse_proposal(response.content)
+        except InsightProviderResponseError:
+            get_audit_logger().error(
+                "insight_provider_parse_failed",
+                raw_content=response.content[:3000],
+                finish_reason=response.finish_reason,
+                provider=response.provider,
+                model=response.model,
+            )
+            raise
 
         _reject_unsafe_output(proposal.summary)
 
