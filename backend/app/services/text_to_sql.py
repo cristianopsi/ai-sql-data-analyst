@@ -65,6 +65,14 @@ metric has source "payments.amount" with filter "payments.status =
 'approved'", the SQL must SUM(payments.amount) with a WHERE clause
 that filters payments.status = 'approved' — do not compute revenue
 from order_items or invent alternative calculations.
+
+CRITICAL — OUTPUT COLUMN ALIASES:
+Each aggregated metric's output column MUST be aliased with the metric's
+exact canonical "name" field from the context. Do not use descriptive
+aliases. For example, if a metric has name "approved_revenue", write
+"SUM(payments.amount) AS approved_revenue" — never "AS total_sales",
+"AS revenue", or any other variant. The analytics layer resolves metric
+columns by this canonical name, so any other alias will be rejected.
 """.strip()
 
 
@@ -92,6 +100,14 @@ Common errors include writing "price" instead of "unit_price",
 "payment_status" instead of "status", or computing metrics from
 the wrong table. Each metric specifies its exact source column and
 required filters — follow them precisely.
+
+CRITICAL — OUTPUT COLUMN ALIASES:
+Each aggregated metric's output column MUST be aliased with the metric's
+exact canonical "name" field from the context. Do not use descriptive
+aliases. For example, if a metric has name "approved_revenue", write
+"SUM(payments.amount) AS approved_revenue" — never "AS total_sales",
+"AS revenue", or any other variant. The analytics layer resolves metric
+columns by this canonical name, so any other alias will be rejected.
 """.strip()
 
 
