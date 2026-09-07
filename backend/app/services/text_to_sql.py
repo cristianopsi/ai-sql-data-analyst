@@ -45,6 +45,26 @@ Never propose INSERT, UPDATE, DELETE, MERGE, DDL, transaction control,
 comments, multiple statements, SELECT *, or undocumented identifiers.
 Do not include Markdown fences or text outside the JSON object.
 The proposal remains untrusted until separate AST validation succeeds.
+
+CRITICAL — COLUMN NAME FIDELITY:
+Every column referenced in the SQL must match EXACTLY the column name
+provided in the schema tables within the context. Do not abbreviate,
+rename, or guess column names. Before writing the SQL, scan the table
+definitions in the context and use the precise column name shown there.
+For example, if the context shows column "unit_price" in table
+"order_items", you must write "order_items.unit_price" — never
+"price", "item_price", or any other variant. If the context shows
+column "status" in table "payments", you must write "payments.status"
+— never "payment_status" or "pay_status".
+
+CRITICAL — METRIC SOURCES:
+Each metric in the context specifies its source table and column,
+plus any required filters. The SQL must aggregate using that exact
+source column and apply the specified filters. For example, if a
+metric has source "payments.amount" with filter "payments.status =
+'approved'", the SQL must SUM(payments.amount) with a WHERE clause
+that filters payments.status = 'approved' — do not compute revenue
+from order_items or invent alternative calculations.
 """.strip()
 
 
@@ -62,6 +82,16 @@ Use COUNT(*) only for row counts; never use qualified stars.
 Never return comments, multiple statements, SELECT *, DML, DDL,
 transaction control, locks, system catalogs, or unknown identifiers.
 Do not include Markdown or text outside the JSON object.
+
+CRITICAL — COLUMN NAME FIDELITY:
+The previous SQL was likely rejected because it used column names
+that do not exist in the schema. Before writing the repaired SQL,
+scan every table definition in the context and use ONLY the exact
+column names shown there. Do not abbreviate or guess column names.
+Common errors include writing "price" instead of "unit_price",
+"payment_status" instead of "status", or computing metrics from
+the wrong table. Each metric specifies its exact source column and
+required filters — follow them precisely.
 """.strip()
 
 
