@@ -8,6 +8,7 @@ compound match (e.g. "category") covers the same span.
 
 from backend.app.services.question_grounding import ground_question
 
+
 def test_category_product_grounds_to_single_dimension() -> None:
     result = ground_question(
         "Qual o total de vendas por categoria de produto?"
