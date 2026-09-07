@@ -38,6 +38,10 @@ from backend.app.services.sql_generation import (
     SQLGenerationExhaustedError,
     SQLGenerationPipeline,
 )
+
+from backend.app.core.observability import (
+    get_audit_logger,
+)
 from backend.app.services.text_to_sql import (
     TextToSQLGroundingError,
     TextToSQLResponseError,
@@ -253,7 +257,12 @@ async def generate_insights(
         AnalyticsEngineError,
         VisualizationEngineError,
         InsightEngineError,
-    ):
+    ) as exc:
+        get_audit_logger().error(
+            "insight_pipeline_controlled_failure",
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
         return _error_response(
             CONTROLLED_FAILURE_DETAIL,
             status.HTTP_422_UNPROCESSABLE_CONTENT,
