@@ -10,15 +10,12 @@ from backend.app.services.question_grounding import ground_question
 
 
 def test_category_product_grounds_to_single_dimension() -> None:
-    result = ground_question(
-        "Qual o total de vendas por categoria de produto?"
-    )
+    result = ground_question("Qual o total de vendas por categoria de produto?")
     assert result.status == "grounded"
     assert result.dimensions == ("category",)
 
+
 def test_sales_channel_remains_single_dimension() -> None:
-    result = ground_question(
-        "Qual a receita por canal de venda?"
-    )
+    result = ground_question("Qual a receita por canal de venda?")
     assert result.status == "grounded"
     assert result.dimensions == ("sales_channel",)
