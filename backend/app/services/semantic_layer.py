@@ -557,6 +557,8 @@ SEMANTIC_METRICS = (
             "sales volume",
             "unidades vendidas",
             "volume vendido",
+            "quantidade vendida",
+            "itens vendidos",
         ),
     ),
     SemanticMetric(
@@ -574,6 +576,11 @@ SEMANTIC_METRICS = (
             "sales revenue",
             "faturamento",
             "receita",
+            "vendas",
+            "total de vendas",
+            "total vendas",
+            "valor de vendas",
+            "montante vendido",
         ),
         filters=(
             SemanticFilter(
@@ -626,6 +633,7 @@ SEMANTIC_METRICS = (
             "sales target",
             "meta de receita",
             "meta de faturamento",
+            "meta de vendas",
         ),
     ),
     SemanticMetric(
