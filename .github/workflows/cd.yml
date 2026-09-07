@@ -88,33 +88,31 @@ jobs:
             --no-allow-unauthenticated \
             --labels=project=ai-sql-data-analyst,environment=prod,managed-by=iagente
 
-      - name: Verify backend deployment
-        continue-on-error: true
+      - name: Promote and verify backend revision
         run: |
-          URL=$(gcloud run services describe backend \
-            --region=${{ vars.CLOUD_RUN_REGION }} \
-            --project=${{ vars.GCP_PROJECT_ID }} \
-            --format="value(status.url)")
-          for i in 1 2 3 4 5; do
+          URL=$(gcloud run services describe backend             --region=${{ vars.CLOUD_RUN_REGION }}             --project=${{ vars.GCP_PROJECT_ID }}             --format="value(status.url)")
+          REV=$(gcloud run services describe backend             --region=${{ vars.CLOUD_RUN_REGION }}             --project=${{ vars.GCP_PROJECT_ID }}             --format="value(status.latestCreatedRevisionName)")
+          echo "Deployed revision: $REV"
+          # Força 100% para a revisão recém-deployada, quebrando qualquer
+          # revision pin de modo manual deixado por migração via console.
+          gcloud run services update-traffic backend --to-revisions="$REV=100"             --region=${{ vars.CLOUD_RUN_REGION }}             --project=${{ vars.GCP_PROJECT_ID }}
+          for i in 1 2 3 4 5 6; do
             sleep 10
             echo "=== Attempt $i ==="
+            ACTIVE=$(gcloud run services describe backend               --region=${{ vars.CLOUD_RUN_REGION }}               --project=${{ vars.GCP_PROJECT_ID }}               --format="value(status.traffic[0].revisionName)")
+            echo "  Serving revision: $ACTIVE (target: $REV)"
             TOKEN=$(gcloud auth print-identity-token --audiences="$URL")
-            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "Authorization: Bearer $TOKEN" \
-              "$URL/health" 2>/dev/null || echo "000")
-            READY=$(curl -s -o /dev/null -w "%{http_code}" \
-              -H "Authorization: Bearer $TOKEN" \
-              "$URL/ready" 2>/dev/null || echo "000")
+            HEALTH=$(curl -s -o /dev/null -w "%{http_code}"               -H "Authorization: Bearer $TOKEN"               "$URL/health" 2>/dev/null || echo "000")
+            READY=$(curl -s -o /dev/null -w "%{http_code}"               -H "Authorization: Bearer $TOKEN"               "$URL/ready" 2>/dev/null || echo "000")
             echo "  /health: $HEALTH"
             echo "  /ready:  $READY"
-            if [ "$HEALTH" = "200" ] && [ "$READY" = "200" ]; then
-              echo "Backend verified successfully"
+            if [ "$ACTIVE" = "$REV" ] && [ "$HEALTH" = "200" ] && [ "$READY" = "200" ]; then
+              echo "Backend promoted and verified: $REV"
               exit 0
             fi
           done
-          echo "Backend verification failed after 5 attempts"
+          echo "Backend promotion or verification failed (serving: $ACTIVE, target: $REV)"
           exit 1
-
   deploy-frontend:
     name: Deploy frontend to Cloud Run
     runs-on: ubuntu-latest
