@@ -417,6 +417,7 @@ SEMANTIC_DIMENSIONS = (
             "category",
             "categoria",
             "categoria do produto",
+            "categoria de produto",
         ),
     ),
     SemanticDimension(

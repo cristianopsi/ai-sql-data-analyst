@@ -199,7 +199,7 @@ def _dimension_candidates(
     question: str,
     layer: SemanticLayer,
 ) -> tuple[_Candidate, ...]:
-    return tuple(
+    candidates = tuple(
         candidate
         for dimension in layer.dimensions
         if (
@@ -216,6 +216,7 @@ def _dimension_candidates(
         )
         is not None
     )
+    return _remove_contained_candidates(candidates)
 
 
 def _value_candidates(
