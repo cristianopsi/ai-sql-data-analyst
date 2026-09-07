@@ -16,7 +16,7 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  deploy:
+  deploy-backend:
     name: Deploy backend to Cloud Run
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -54,8 +54,7 @@ jobs:
           docker push "$LATEST"
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
-      - name: Deploy to Cloud Run
-        id: deploy
+      - name: Deploy backend to Cloud Run
         run: |
           gcloud run deploy backend \
             --image="${{ steps.build.outputs.image }}" \
@@ -89,7 +88,7 @@ jobs:
             --no-allow-unauthenticated \
             --labels=project=ai-sql-data-analyst,environment=prod,managed-by=iagente
 
-      - name: Verify deployment
+      - name: Verify backend deployment
         continue-on-error: true
         run: |
           URL=$(gcloud run services describe backend \
@@ -109,9 +108,99 @@ jobs:
             echo "  /health: $HEALTH"
             echo "  /ready:  $READY"
             if [ "$HEALTH" = "200" ] && [ "$READY" = "200" ]; then
-              echo "Deployment verified successfully"
+              echo "Backend verified successfully"
               exit 0
             fi
           done
-          echo "Verification failed after 5 attempts, but deploy may still be warming up"
+          echo "Backend verification failed after 5 attempts"
+          exit 1
+
+  deploy-frontend:
+    name: Deploy frontend to Cloud Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: deploy-backend
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: sa-runtime@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+          token_format: access_token
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          echo "${{ steps.auth.outputs.access_token }}" | docker login \
+            ${{ vars.ARTIFACT_REGISTRY }} \
+            --username oauth2accesstoken \
+            --password-stdin
+
+      - name: Build and push frontend image
+        id: build
+        run: |
+          IMAGE="${{ vars.ARTIFACT_REGISTRY }}/frontend:${{ github.sha }}"
+          LATEST="${{ vars.ARTIFACT_REGISTRY }}/frontend:latest"
+          docker build --file Dockerfile.frontend --tag "$IMAGE" --tag "$LATEST" .
+          docker push "$IMAGE"
+          docker push "$LATEST"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Get backend URL
+        id: backend
+        run: |
+          BACKEND_URL=$(gcloud run services describe backend \
+            --region=${{ vars.CLOUD_RUN_REGION }} \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --format="value(status.url)")
+          echo "url=$BACKEND_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy frontend to Cloud Run
+        run: |
+          gcloud run deploy frontend \
+            --image="${{ steps.build.outputs.image }}" \
+            --region=${{ vars.CLOUD_RUN_REGION }} \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --service-account=sa-runtime@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --set-env-vars="API_BASE_URL=${{ steps.backend.outputs.url }}" \
+            --port=8501 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --memory=1Gi \
+            --cpu=1 \
+            --timeout=300 \
+            --concurrency=10 \
+            --allow-unauthenticated \
+            --labels=project=ai-sql-data-analyst,environment=prod,managed-by=iagente
+
+      - name: Verify frontend deployment
+        continue-on-error: true
+        run: |
+          URL=$(gcloud run services describe frontend \
+            --region=${{ vars.CLOUD_RUN_REGION }} \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --format="value(status.url)")
+          for i in 1 2 3 4 5; do
+            sleep 10
+            echo "=== Attempt $i ==="
+            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" \
+              "$URL" 2>/dev/null || echo "000")
+            STREAMLIT=$(curl -s -o /dev/null -w "%{http_code}" \
+              "$URL/_stcore/health" 2>/dev/null || echo "000")
+            echo "  /: $HEALTH"
+            echo "  /_stcore/health: $STREAMLIT"
+            if [ "$HEALTH" = "200" ] && [ "$STREAMLIT" = "200" ]; then
+              echo "Frontend verified successfully"
+              exit 0
+            fi
+          done
+          echo "Frontend verification failed after 5 attempts"
           exit 1
