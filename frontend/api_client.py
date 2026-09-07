@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import math
+import os
+import urllib.request
 
 import httpx
 from pydantic import ValidationError
@@ -14,7 +16,7 @@ from backend.app.schemas.presentation import (
 )
 
 PRESENTATION_ENDPOINT = "/api/v1/presentations/generate"
-DEFAULT_PRESENTATION_TIMEOUT_SECONDS = 15.0
+DEFAULT_PRESENTATION_TIMEOUT_SECONDS = 120.0
 
 
 class PresentationClientError(RuntimeError):
@@ -43,6 +45,22 @@ class PresentationTransportError(PresentationClientError):
 
 class PresentationProtocolError(PresentationClientError):
     """Raised when the backend response violates its public contract."""
+
+
+def _fetch_cloud_run_identity_token(audience: str) -> str | None:
+    """Fetch an identity token from the metadata server when running in Cloud Run."""
+    if not os.environ.get("K_SERVICE"):
+        return None
+    try:
+        url = (
+            "http://metadata.google.internal/computeMetadata/v1/"
+            f"instance/service-accounts/default/identity?audience={audience}"
+        )
+        req = urllib.request.Request(url, headers={"Metadata-Flavor": "Google"})
+        token = urllib.request.urlopen(req, timeout=5).read().decode()
+        return str(token)
+    except Exception:  # noqa: BLE001
+        return None
 
 
 def _normalized_base_url(api_base_url: str) -> str:
@@ -130,13 +148,17 @@ def generate_presentation(
     except ValidationError as error:
         raise PresentationRequestRejectedError("Presentation request is invalid") from error
 
+    request_headers: dict[str, str] = {"Accept": "application/json"}
+    auth_token = _fetch_cloud_run_identity_token(base_url)
+    if auth_token:
+        request_headers["Authorization"] = f"Bearer {auth_token}"
     try:
         with httpx.Client(
             base_url=base_url,
             timeout=timeout,
             transport=transport,
             follow_redirects=False,
-            headers={"Accept": "application/json"},
+            headers=request_headers,
         ) as client:
             response = client.post(
                 PRESENTATION_ENDPOINT,
