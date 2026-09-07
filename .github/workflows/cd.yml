@@ -88,6 +88,19 @@ jobs:
             --no-allow-unauthenticated \
             --labels=project=ai-sql-data-analyst,environment=prod,managed-by=iagente
 
+      - name: Get backend URL
+        id: url
+        run: |
+          URL=$(gcloud run services describe backend             --region=${{ vars.CLOUD_RUN_REGION }}             --project=${{ vars.GCP_PROJECT_ID }}             --format="value(status.url)")
+          echo "url=$URL" >> "$GITHUB_OUTPUT"
+      - name: Authenticate to backend (id_token)
+        id: auth-id
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: sa-runtime@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+          token_format: id_token
+          id_token_audience: ${{ steps.url.outputs.url }}
       - name: Promote and verify backend revision
         run: |
           URL=$(gcloud run services describe backend             --region=${{ vars.CLOUD_RUN_REGION }}             --project=${{ vars.GCP_PROJECT_ID }}             --format="value(status.url)")
@@ -101,7 +114,9 @@ jobs:
             echo "=== Attempt $i ==="
             ACTIVE=$(gcloud run services describe backend               --region=${{ vars.CLOUD_RUN_REGION }}               --project=${{ vars.GCP_PROJECT_ID }}               --format="value(status.traffic[0].revisionName)")
             echo "  Serving revision: $ACTIVE (target: $REV)"
-            TOKEN=$(gcloud auth print-identity-token --audiences="$URL")
+            TOKEN="${{ steps.auth-id.outputs.id_token }}"
+            URL="${{ steps.url.outputs.url }}"
+
             HEALTH=$(curl -s -o /dev/null -w "%{http_code}"               -H "Authorization: Bearer $TOKEN"               "$URL/health" 2>/dev/null || echo "000")
             READY=$(curl -s -o /dev/null -w "%{http_code}"               -H "Authorization: Bearer $TOKEN"               "$URL/ready" 2>/dev/null || echo "000")
             echo "  /health: $HEALTH"
