@@ -10,6 +10,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
+from backend.app.core.observability import get_audit_logger
 from backend.app.schemas.presentation import (
     AnalyticalPresentationResult,
     PresentationApiErrorResponse,
@@ -180,7 +181,12 @@ async def _generate_result(
         AnalyticsEngineError,
         VisualizationEngineError,
         InsightEngineError,
-    ):
+    ) as exc:
+        get_audit_logger().error(
+            "presentation_pipeline_controlled_failure",
+            error_type=type(exc).__name__,
+            error=str(exc),
+        )
         return _error_response(
             CONTROLLED_FAILURE_DETAIL,
             status.HTTP_422_UNPROCESSABLE_CONTENT,
