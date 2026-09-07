@@ -9,6 +9,9 @@ from fastapi.responses import JSONResponse
 from fastapi.routing import APIRoute
 from starlette.concurrency import run_in_threadpool
 
+from backend.app.core.observability import (
+    get_audit_logger,
+)
 from backend.app.schemas.analytics import DeterministicAnalyticsResult
 from backend.app.schemas.insights import (
     GroundedInsightRequest,
@@ -37,10 +40,6 @@ from backend.app.services.question_grounding import QuestionGroundingError
 from backend.app.services.sql_generation import (
     SQLGenerationExhaustedError,
     SQLGenerationPipeline,
-)
-
-from backend.app.core.observability import (
-    get_audit_logger,
 )
 from backend.app.services.text_to_sql import (
     TextToSQLGroundingError,
