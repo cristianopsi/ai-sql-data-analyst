@@ -1,0 +1,102 @@
+name: cd
+
+on:
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: cd-${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy backend to Cloud Run
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud (WIF)
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER }}
+          service_account: sa-runtime@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ vars.ARTIFACT_REGISTRY }} --quiet
+
+      - name: Build and push backend image
+        id: build
+        run: |
+          IMAGE="${{ vars.ARTIFACT_REGISTRY }}/backend:${{ github.sha }}"
+          LATEST="${{ vars.ARTIFACT_REGISTRY }}/backend:latest"
+          docker build --file Dockerfile.backend --tag "$IMAGE" --tag "$LATEST" .
+          docker push "$IMAGE"
+          docker push "$LATEST"
+          echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy backend \
+            --image="${{ steps.build.outputs.image }}" \
+            --region=${{ vars.CLOUD_RUN_REGION }} \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --service-account=sa-runtime@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
+            --add-cloudsql-instances=${{ vars.CLOUD_SQL_INSTANCE }} \
+            --set-env-vars="\
+              APP_ENV=production,\
+              LLM_PROVIDER=deepseek,\
+              LLM_MODEL=deepseek-v4-flash,\
+              CLOUD_SQL_CONNECTOR_ENABLED=true,\
+              CLOUD_SQL_INSTANCE=${{ vars.CLOUD_SQL_INSTANCE }},\
+              CLOUD_SQL_DATABASE=retail_analytics,\
+              CLOUD_SQL_APP_USER=postgres,\
+              CLOUD_SQL_ANALYTICS_USER=analytics,\
+              SECRET_MANAGER_ENABLED=true,\
+              AUTH_ENABLED=false,\
+              CORS_ALLOWED_ORIGINS=*" \
+            --set-secrets="\
+              LLM_API_KEY=llm-api-key:latest,\
+              CLOUD_SQL_APP_PASSWORD=cloud-sql-app-password:latest,\
+              CLOUD_SQL_ANALYTICS_PASSWORD=cloud-sql-analytics-password:latest" \
+            --port=8000 \
+            --min-instances=0 \
+            --max-instances=3 \
+            --memory=1Gi \
+            --cpu=1 \
+            --timeout=300 \
+            --concurrency=10 \
+            --no-allow-unauthenticated \
+            --labels=project=ai-sql-data-analyst,environment=prod,managed-by=iagente
+
+      - name: Verify deployment
+        run: |
+          sleep 15
+          TOKEN=$(gcloud auth print-identity-token)
+          URL=$(gcloud run services describe backend \
+            --region=${{ vars.CLOUD_RUN_REGION }} \
+            --project=${{ vars.GCP_PROJECT_ID }} \
+            --format="value(status.url)")
+          echo "=== /health ==="
+          curl -s -w "\nHTTP: %{http_code}\n" \
+            -H "Authorization: Bearer $TOKEN" \
+            "$URL/health"
+          echo "=== /ready ==="
+          curl -s -w "\nHTTP: %{http_code}\n" \
+            -H "Authorization: Bearer $TOKEN" \
+            "$URL/ready"
