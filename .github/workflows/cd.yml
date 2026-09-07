@@ -55,6 +55,7 @@ jobs:
           echo "image=$IMAGE" >> "$GITHUB_OUTPUT"
 
       - name: Deploy to Cloud Run
+        id: deploy
         run: |
           gcloud run deploy backend \
             --image="${{ steps.build.outputs.image }}" \
@@ -89,18 +90,28 @@ jobs:
             --labels=project=ai-sql-data-analyst,environment=prod,managed-by=iagente
 
       - name: Verify deployment
+        continue-on-error: true
         run: |
-          sleep 15
-          TOKEN=$(gcloud auth print-identity-token)
           URL=$(gcloud run services describe backend \
             --region=${{ vars.CLOUD_RUN_REGION }} \
             --project=${{ vars.GCP_PROJECT_ID }} \
             --format="value(status.url)")
-          echo "=== /health ==="
-          curl -s -w "\nHTTP: %{http_code}\n" \
-            -H "Authorization: Bearer $TOKEN" \
-            "$URL/health"
-          echo "=== /ready ==="
-          curl -s -w "\nHTTP: %{http_code}\n" \
-            -H "Authorization: Bearer $TOKEN" \
-            "$URL/ready"
+          for i in 1 2 3 4 5; do
+            sleep 10
+            echo "=== Attempt $i ==="
+            TOKEN=$(gcloud auth print-identity-token --audiences="$URL")
+            HEALTH=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer $TOKEN" \
+              "$URL/health" 2>/dev/null || echo "000")
+            READY=$(curl -s -o /dev/null -w "%{http_code}" \
+              -H "Authorization: Bearer $TOKEN" \
+              "$URL/ready" 2>/dev/null || echo "000")
+            echo "  /health: $HEALTH"
+            echo "  /ready:  $READY"
+            if [ "$HEALTH" = "200" ] && [ "$READY" = "200" ]; then
+              echo "Deployment verified successfully"
+              exit 0
+            fi
+          done
+          echo "Verification failed after 5 attempts, but deploy may still be warming up"
+          exit 1
