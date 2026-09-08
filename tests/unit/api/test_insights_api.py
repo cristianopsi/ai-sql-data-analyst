@@ -257,7 +257,7 @@ def test_invalid_request_is_sanitized(
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Question is invalid",
+        "detail": "Pergunta inválida",
     }
     assert response.headers["cache-control"] == "no-store"
     assert "sql" not in str(response.json()).casefold()
@@ -293,7 +293,7 @@ def test_missing_runtime_dependency_returns_503(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Insight service is unavailable",
+        "detail": "Serviço de insights indisponível",
     }
     assert response.headers["cache-control"] == "no-store"
 
@@ -331,7 +331,7 @@ def test_grounding_failure_returns_sanitized_422(
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Question is invalid",
+        "detail": "Pergunta inválida",
     }
     assert response.headers["cache-control"] == "no-store"
     assert "private" not in str(response.json()).casefold()
@@ -378,7 +378,7 @@ def test_controlled_failure_returns_sanitized_422(
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Insight could not be produced safely",
+        "detail": "Não foi possível gerar o insight com segurança",
     }
     assert response.headers["cache-control"] == "no-store"
     assert "private" not in str(response.json()).casefold()
@@ -418,7 +418,7 @@ def test_unavailable_failure_returns_sanitized_503(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Insight service is unavailable",
+        "detail": "Serviço de insights indisponível",
     }
     assert response.headers["cache-control"] == "no-store"
     assert "private" not in str(response.json()).casefold()
@@ -449,7 +449,7 @@ def test_unexpected_failure_returns_sanitized_503(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Insight service is unavailable",
+        "detail": "Serviço de insights indisponível",
     }
     assert response.headers["cache-control"] == "no-store"
     assert "private" not in str(response.json()).casefold()

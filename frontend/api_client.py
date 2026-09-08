@@ -68,19 +68,23 @@ def _normalized_base_url(api_base_url: str) -> str:
     normalized = api_base_url.strip()
 
     if not normalized:
-        raise PresentationClientConfigurationError("Presentation service URL is not configured")
+        raise PresentationClientConfigurationError(
+            "A URL do serviço de apresentação não está configurada"
+        )
 
     try:
         url = httpx.URL(normalized)
     except httpx.InvalidURL as error:
-        raise PresentationClientConfigurationError("Presentation service URL is invalid") from error
+        raise PresentationClientConfigurationError(
+            "A URL do serviço de apresentação é inválida"
+        ) from error
 
     if url.scheme not in {"http", "https"} or not url.host:
-        raise PresentationClientConfigurationError("Presentation service URL is invalid")
+        raise PresentationClientConfigurationError("A URL do serviço de apresentação é inválida")
 
     if url.username or url.password:
         raise PresentationClientConfigurationError(
-            "Presentation service URL must not contain credentials"
+            "A URL do serviço de apresentação não deve conter credenciais"
         )
 
     return str(url).rstrip("/")
@@ -94,7 +98,9 @@ def _validated_timeout(timeout_seconds: float) -> float:
         or not math.isfinite(timeout_seconds)
         or timeout_seconds <= 0
     ):
-        raise PresentationClientConfigurationError("Presentation service timeout is invalid")
+        raise PresentationClientConfigurationError(
+            "O tempo limite do serviço de apresentação é inválido"
+        )
 
     return float(timeout_seconds)
 
@@ -146,7 +152,7 @@ def generate_presentation(
     try:
         request = PresentationRequest(question=question)
     except ValidationError as error:
-        raise PresentationRequestRejectedError("Presentation request is invalid") from error
+        raise PresentationRequestRejectedError("Requisição de apresentação inválida") from error
 
     request_headers: dict[str, str] = {"Accept": "application/json"}
     auth_token = _fetch_cloud_run_identity_token(base_url)
@@ -173,7 +179,7 @@ def generate_presentation(
         raise PresentationRequestRejectedError(
             _public_error_detail(
                 response,
-                fallback="Presentation request is invalid",
+                fallback="Requisição de apresentação inválida",
             )
         )
 
@@ -181,7 +187,7 @@ def generate_presentation(
         raise PresentationServiceUnavailableError(
             _public_error_detail(
                 response,
-                fallback="Presentation service is unavailable",
+                fallback="Serviço de apresentação indisponível",
             )
         )
 

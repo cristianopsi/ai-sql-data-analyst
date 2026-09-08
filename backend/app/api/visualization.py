@@ -101,7 +101,7 @@ class SanitizedVisualizationRoute(APIRoute):
                 response = await original_handler(request)
             except RequestValidationError:
                 response = _error_response(
-                    "Question is invalid",
+                    "Pergunta inválida",
                     status.HTTP_422_UNPROCESSABLE_CONTENT,
                 )
 
@@ -204,7 +204,7 @@ async def specify_visualizations(
         or database_ready is not True
     ):
         return _error_response(
-            "Visualization service is unavailable",
+            "Serviço de visualização indisponível",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
@@ -239,7 +239,7 @@ async def specify_visualizations(
         QuestionGroundingError,
     ):
         return _error_response(
-            "Question is invalid",
+            "Pergunta inválida",
             status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except (
@@ -252,7 +252,7 @@ async def specify_visualizations(
         VisualizationEngineError,
     ):
         return _error_response(
-            "Visualization could not be produced safely",
+            "Não foi possível gerar a visualização com segurança",
             status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except (
@@ -260,12 +260,12 @@ async def specify_visualizations(
         QueryExecutionUnavailableError,
     ):
         return _error_response(
-            "Visualization service is unavailable",
+            "Serviço de visualização indisponível",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     except Exception:
         return _error_response(
-            "Visualization service is unavailable",
+            "Serviço de visualização indisponível",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 

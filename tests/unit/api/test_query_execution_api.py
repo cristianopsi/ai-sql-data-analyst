@@ -189,7 +189,7 @@ def test_invalid_request_is_sanitized() -> None:
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Question is invalid",
+        "detail": "Pergunta inválida",
     }
     assert response.headers["cache-control"] == "no-store"
     assert pipeline.questions == []
@@ -216,7 +216,7 @@ def test_question_failure_returns_sanitized_422() -> None:
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Question is invalid",
+        "detail": "Pergunta inválida",
     }
     assert sensitive not in response.text
     assert executor.generations == []
@@ -242,7 +242,7 @@ def test_unsafe_generation_returns_sanitized_422() -> None:
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": ("Query could not be generated safely"),
+        "detail": ("Não foi possível gerar a consulta com segurança"),
     }
     assert sensitive not in response.text
     assert executor.generations == []
@@ -268,7 +268,7 @@ def test_generation_unavailable_returns_503() -> None:
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Query execution is unavailable",
+        "detail": "Execução da consulta indisponível",
     }
     assert sensitive not in response.text
     assert executor.generations == []
@@ -302,7 +302,7 @@ def test_unsafe_execution_returns_sanitized_422(
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": ("Query could not be executed safely"),
+        "detail": ("Não foi possível executar a consulta com segurança"),
     }
     assert str(execution_error) not in response.text
     assert pipeline.questions == ["Pedidos"]
@@ -329,7 +329,7 @@ def test_execution_unavailable_returns_503() -> None:
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Query execution is unavailable",
+        "detail": "Execução da consulta indisponível",
     }
     assert sensitive not in response.text
 
@@ -367,7 +367,7 @@ def test_missing_runtime_dependency_returns_503(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Query execution is unavailable",
+        "detail": "Execução da consulta indisponível",
     }
 
 

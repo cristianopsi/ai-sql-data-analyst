@@ -46,21 +46,20 @@ def run_application(
 
     st.title("AI SQL Data Analyst")
     st.caption(
-        "Ask a governed analytical question. "
-        "SQL execution, calculations and evidence validation "
-        "remain controlled by the backend."
+        "Faça uma pergunta analítica governada. A execução de SQL, os cálculos "
+        "e a validação de evidências permanecem controlados pelo backend."
     )
 
     resolved_settings = settings or Settings()
 
     with st.form("analytical-question-form"):
         question = st.text_input(
-            "Question",
-            placeholder="Show approved revenue by region",
+            "Pergunta",
+            placeholder="Ex.: receita aprovada por região",
             max_chars=2000,
         )
         submitted = st.form_submit_button(
-            "Generate presentation",
+            "Gerar apresentação",
             type="primary",
         )
 
@@ -71,7 +70,7 @@ def run_application(
         )
 
         try:
-            with st.spinner("Generating the analytical presentation..."):
+            with st.spinner("Gerando a apresentação analítica..."):
                 result = generator(
                     api_base_url=(resolved_settings.api_base_url),
                     question=question,
@@ -79,7 +78,7 @@ def run_application(
         except PresentationClientError as error:
             st.error(error.public_message)
         except Exception:  # noqa: BLE001
-            st.error("Presentation could not be displayed safely")
+            st.error("Não foi possível exibir a apresentação com segurança")
         else:
             st.session_state[_RESULT_SESSION_KEY] = result
 
@@ -92,8 +91,8 @@ def run_application(
         render_presentation(stored_result)
     elif not submitted:
         st.info(
-            "Submit a question to generate a table, "
-            "deterministic visualizations and grounded insights."
+            "Envie uma pergunta para gerar uma tabela, visualizações "
+            "determinísticas e insights fundamentados."
         )
 
 

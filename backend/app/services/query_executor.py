@@ -326,7 +326,7 @@ class QueryExecutor:
         except QueryExecutionError:
             raise
         except Exception as error:
-            raise QueryExecutionUnavailableError("Query execution is unavailable") from error
+            raise QueryExecutionUnavailableError("Execução da consulta indisponível") from error
 
 
 type QueryExecutorFactory = Callable[

@@ -93,9 +93,9 @@ def test_application_initial_interface_with_apptest() -> None:
     assert len(application.title) == 1
     assert application.title[0].value == "AI SQL Data Analyst"
     assert len(application.text_input) == 1
-    assert application.text_input[0].label == "Question"
+    assert application.text_input[0].label == "Pergunta"
     assert len(application.button) == 1
-    assert application.button[0].label == "Generate presentation"
+    assert application.button[0].label == "Gerar apresentação"
     assert len(application.info) == 1
     assert len(application.error) == 0
 
@@ -147,8 +147,8 @@ def test_successful_submission_uses_question_only_client(
     "error",
     [
         PresentationClientConfigurationError("Presentation service URL is invalid"),
-        PresentationRequestRejectedError("Presentation request is invalid"),
-        PresentationServiceUnavailableError("Presentation service is unavailable"),
+        PresentationRequestRejectedError("Requisição de apresentação inválida"),
+        PresentationServiceUnavailableError("Serviço de apresentação indisponível"),
         PresentationTransportError("Presentation service could not be reached"),
         PresentationProtocolError("Presentation service returned an invalid response"),
     ],
@@ -205,7 +205,7 @@ def test_unexpected_failure_is_sanitized(
     )
 
     controls["error"].assert_called_once_with(  # type: ignore[union-attr]
-        "Presentation could not be displayed safely"
+        "Não foi possível exibir a apresentação com segurança"
     )
     assert (
         sensitive_detail not in controls["error"].call_args.args[0]  # type: ignore[union-attr]

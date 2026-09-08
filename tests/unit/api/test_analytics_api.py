@@ -308,7 +308,7 @@ def test_invalid_analytics_request_is_sanitized() -> None:
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Question is invalid",
+        "detail": "Pergunta inválida",
     }
     assert response.headers["cache-control"] == "no-store"
     assert pipeline.questions == []
@@ -336,7 +336,7 @@ def test_missing_internal_context_fails_closed() -> None:
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Analytics could not be produced safely",
+        "detail": "Não foi possível gerar a análise com segurança",
     }
     assert pipeline.questions == ["Receita aprovada"]
     assert executor.generations == []
@@ -365,7 +365,7 @@ def test_grounding_failure_returns_sanitized_422() -> None:
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Question is invalid",
+        "detail": "Pergunta inválida",
     }
     assert sensitive not in response.text
 
@@ -421,7 +421,7 @@ def test_controlled_unsafe_failure_returns_sanitized_422(
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Analytics could not be produced safely",
+        "detail": "Não foi possível gerar a análise com segurança",
     }
     assert str(controlled_error) not in response.text
 
@@ -477,7 +477,7 @@ def test_unavailable_failure_returns_sanitized_503(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Analytics service is unavailable",
+        "detail": "Serviço de análise indisponível",
     }
     assert str(unavailable_error) not in response.text
 
@@ -520,7 +520,7 @@ def test_missing_runtime_dependency_returns_503(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Analytics service is unavailable",
+        "detail": "Serviço de análise indisponível",
     }
 
 

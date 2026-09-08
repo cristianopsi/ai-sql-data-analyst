@@ -79,7 +79,7 @@ class SQLGenerationResult(BaseModel):
 
 
 type SQLGenerationApiErrorDetail = Literal[
-    "Question is invalid",
+    "Pergunta inválida",
     "SQL could not be generated safely",
     "SQL generation is unavailable",
 ]

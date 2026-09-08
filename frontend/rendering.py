@@ -99,13 +99,13 @@ def _axis_unit_label(unit: object) -> str:
     normalized_unit = _unit_key(unit)
 
     if normalized_unit in {"brl", "currency_brl"}:
-        return "BRL"
+        return "R$"
 
     if normalized_unit in {"percent", "percentage"}:
-        return "Percent"
+        return "Percentual"
 
     if normalized_unit == "count":
-        return "Count"
+        return "Contagem"
 
     return str(getattr(unit, "value", unit))
 
@@ -238,21 +238,21 @@ def render_kpi(
             (
                 f"Values: {specification.value_count}",
                 (
-                    "Average: "
+                    "Média: "
                     + format_metric_value(
                         specification.average,
                         specification.unit,
                     )
                 ),
                 (
-                    "Minimum: "
+                    "Mínimo: "
                     + format_metric_value(
                         specification.minimum,
                         specification.unit,
                     )
                 ),
                 (
-                    "Maximum: "
+                    "Máximo: "
                     + format_metric_value(
                         specification.maximum,
                         specification.unit,
@@ -322,25 +322,25 @@ def render_presentation(
     result: AnalyticalPresentationResult,
 ) -> None:
     """Render only fields from the validated public presentation."""
-    st.subheader("Query results")
+    st.subheader("Resultados da consulta")
     st.dataframe(
         query_dataframe(result.query),
         width="stretch",
         hide_index=True,
     )
 
-    with st.expander("Validated SQL"):
+    with st.expander("SQL validado"):
         st.code(
             result.query.validated_sql,
             language="sql",
         )
 
-    st.subheader("Visualizations")
+    st.subheader("Visualizações")
 
     for specification in result.visualizations.specifications:
         render_visualization(specification)
 
-    st.subheader("Grounded insights")
+    st.subheader("Insights fundamentados")
     st.markdown(
         result.insights.summary,
         unsafe_allow_html=False,
@@ -352,7 +352,7 @@ def render_presentation(
             unsafe_allow_html=False,
         )
         st.caption(
-            "Evidence: " + " · ".join(_evidence_caption(evidence) for evidence in claim.evidence)
+            "Evidência: " + " · ".join(_evidence_caption(evidence) for evidence in claim.evidence)
         )
 
 

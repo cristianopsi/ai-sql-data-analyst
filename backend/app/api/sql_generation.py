@@ -101,7 +101,7 @@ async def generate_sql(
         QuestionGroundingError,
     ):
         return _error_response(
-            "Question is invalid",
+            "Pergunta inválida",
             status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except TextToSQLGroundingError:

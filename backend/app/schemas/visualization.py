@@ -677,9 +677,9 @@ class DeterministicVisualizationResult(BaseModel):
 
 
 type VisualizationApiErrorDetail = Literal[
-    "Question is invalid",
-    "Visualization could not be produced safely",
-    "Visualization service is unavailable",
+    "Pergunta inválida",
+    "Não foi possível gerar a visualização com segurança",
+    "Serviço de visualização indisponível",
 ]
 
 

@@ -410,7 +410,7 @@ def test_invalid_visualization_request_is_sanitized() -> None:
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Question is invalid",
+        "detail": "Pergunta inválida",
     }
     assert response.headers["cache-control"] == "no-store"
     assert events == []
@@ -442,7 +442,7 @@ def test_missing_internal_context_fails_closed() -> None:
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Visualization could not be produced safely",
+        "detail": "Não foi possível gerar a visualização com segurança",
     }
     assert events == ["generate"]
 
@@ -473,7 +473,7 @@ def test_grounding_failure_returns_sanitized_422() -> None:
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Question is invalid",
+        "detail": "Pergunta inválida",
     }
     assert events == ["generate"]
 
@@ -552,7 +552,7 @@ def test_controlled_failure_returns_sanitized_422(
 
     assert response.status_code == 422
     assert response.json() == {
-        "detail": "Visualization could not be produced safely",
+        "detail": "Não foi possível gerar a visualização com segurança",
     }
     assert response.headers["cache-control"] == "no-store"
     assert events == expected_events
@@ -611,7 +611,7 @@ def test_unavailable_failure_returns_sanitized_503(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Visualization service is unavailable",
+        "detail": "Serviço de visualização indisponível",
     }
     assert response.headers["cache-control"] == "no-store"
     assert events == expected_events
@@ -644,7 +644,7 @@ def test_unexpected_runtime_failure_returns_sanitized_503() -> None:
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Visualization service is unavailable",
+        "detail": "Serviço de visualização indisponível",
     }
     assert response.headers["cache-control"] == "no-store"
     assert response.headers["content-type"].startswith(
@@ -740,7 +740,7 @@ def test_missing_runtime_dependency_returns_503(
 
     assert response.status_code == 503
     assert response.json() == {
-        "detail": "Visualization service is unavailable",
+        "detail": "Serviço de visualização indisponível",
     }
     assert response.headers["cache-control"] == "no-store"
     assert events == []

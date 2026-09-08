@@ -47,10 +47,10 @@ class QuestionGrounding(BaseModel):
 
 
 type GroundingApiErrorDetail = Literal[
-    "Question is invalid",
+    "Pergunta inválida",
     "Question cannot be grounded safely",
     "Question is outside the supported analytics domain",
-    "Grounding context is unavailable",
+    "Contexto de ancoragem indisponível",
 ]
 
 

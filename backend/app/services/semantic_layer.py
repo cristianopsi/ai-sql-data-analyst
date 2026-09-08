@@ -38,7 +38,7 @@ def _reference(
 ORDER_STATUS_VALUES = (
     SemanticValue(
         value="cancelled",
-        label="Cancelled",
+        label="Cancelado",
         synonyms=(
             "canceled",
             "cancelado",
@@ -47,7 +47,7 @@ ORDER_STATUS_VALUES = (
     ),
     SemanticValue(
         value="delivered",
-        label="Delivered",
+        label="Entregue",
         synonyms=(
             "completed",
             "entregue",
@@ -58,7 +58,7 @@ ORDER_STATUS_VALUES = (
     ),
     SemanticValue(
         value="paid",
-        label="Paid",
+        label="Pago",
         synonyms=(
             "pago",
             "pagos",
@@ -66,7 +66,7 @@ ORDER_STATUS_VALUES = (
     ),
     SemanticValue(
         value="pending",
-        label="Pending",
+        label="Pendente",
         synonyms=(
             "pendente",
             "pendentes",
@@ -74,7 +74,7 @@ ORDER_STATUS_VALUES = (
     ),
     SemanticValue(
         value="shipped",
-        label="Shipped",
+        label="Enviado",
         synonyms=(
             "enviado",
             "enviados",
@@ -102,7 +102,7 @@ SALES_CHANNEL_VALUES = (
     ),
     SemanticValue(
         value="store",
-        label="Store",
+        label="Loja",
         synonyms=(
             "physical store",
             "loja",
@@ -123,7 +123,7 @@ SALES_CHANNEL_VALUES = (
 PAYMENT_STATUS_VALUES = (
     SemanticValue(
         value="approved",
-        label="Approved",
+        label="Aprovado",
         synonyms=(
             "aprovado",
             "aprovados",
@@ -132,7 +132,7 @@ PAYMENT_STATUS_VALUES = (
     ),
     SemanticValue(
         value="failed",
-        label="Failed",
+        label="Falhou",
         synonyms=(
             "falhou",
             "falha",
@@ -141,7 +141,7 @@ PAYMENT_STATUS_VALUES = (
     ),
     SemanticValue(
         value="pending",
-        label="Pending",
+        label="Pendente",
         synonyms=(
             "pendente",
             "pendentes",
@@ -149,7 +149,7 @@ PAYMENT_STATUS_VALUES = (
     ),
     SemanticValue(
         value="refunded",
-        label="Refunded",
+        label="Reembolsado",
         synonyms=(
             "reembolsado",
             "estornado",
@@ -160,7 +160,7 @@ PAYMENT_STATUS_VALUES = (
 PAYMENT_METHOD_VALUES = (
     SemanticValue(
         value="bank_slip",
-        label="Bank slip",
+        label="Boleto",
         synonyms=(
             "boleto",
             "boleto bancário",
@@ -168,7 +168,7 @@ PAYMENT_METHOD_VALUES = (
     ),
     SemanticValue(
         value="credit_card",
-        label="Credit card",
+        label="Cartão de crédito",
         synonyms=(
             "cartão de crédito",
             "cartao de credito",
@@ -176,7 +176,7 @@ PAYMENT_METHOD_VALUES = (
     ),
     SemanticValue(
         value="debit_card",
-        label="Debit card",
+        label="Cartão de débito",
         synonyms=(
             "cartão de débito",
             "cartao de debito",
@@ -195,7 +195,7 @@ PAYMENT_METHOD_VALUES = (
 CUSTOMER_SEGMENT_VALUES = (
     SemanticValue(
         value="consumer",
-        label="Consumer",
+        label="Consumidor",
         synonyms=(
             "consumidor",
             "pessoa física",
@@ -204,7 +204,7 @@ CUSTOMER_SEGMENT_VALUES = (
     ),
     SemanticValue(
         value="enterprise",
-        label="Enterprise",
+        label="Empresa",
         synonyms=(
             "corporate",
             "empresa",
@@ -213,7 +213,7 @@ CUSTOMER_SEGMENT_VALUES = (
     ),
     SemanticValue(
         value="small_business",
-        label="Small business",
+        label="Pequena empresa",
         synonyms=(
             "small company",
             "pequena empresa",
@@ -225,7 +225,7 @@ CUSTOMER_SEGMENT_VALUES = (
 BOOLEAN_ACTIVE_VALUES = (
     SemanticValue(
         value=True,
-        label="Active",
+        label="Ativo",
         synonyms=(
             "ativo",
             "ativos",
@@ -233,7 +233,7 @@ BOOLEAN_ACTIVE_VALUES = (
     ),
     SemanticValue(
         value=False,
-        label="Inactive",
+        label="Inativo",
         synonyms=(
             "inativo",
             "inativos",
@@ -244,7 +244,7 @@ BOOLEAN_ACTIVE_VALUES = (
 SEMANTIC_DIMENSIONS = (
     SemanticDimension(
         name="order_date",
-        label="Order date",
+        label="Data do pedido",
         description="Calendar date when an order was placed.",
         source=_reference(
             "orders",
@@ -265,7 +265,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="order_status",
-        label="Order status",
+        label="Status do pedido",
         description="Current lifecycle status of an order.",
         source=_reference(
             "orders",
@@ -280,7 +280,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="sales_channel",
-        label="Sales channel",
+        label="Canal de venda",
         description="Channel through which an order was placed.",
         source=_reference(
             "orders",
@@ -296,7 +296,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="payment_date",
-        label="Payment date",
+        label="Data do pagamento",
         description="Date when an approved payment was settled.",
         source=_reference(
             "payments",
@@ -316,7 +316,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="payment_status",
-        label="Payment status",
+        label="Status do pagamento",
         description="Processing status of a payment.",
         source=_reference(
             "payments",
@@ -331,7 +331,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="payment_method",
-        label="Payment method",
+        label="Meio de pagamento",
         description="Method used to pay for an order.",
         source=_reference(
             "payments",
@@ -347,7 +347,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="customer_segment",
-        label="Customer segment",
+        label="Segmento do cliente",
         description="Commercial segment assigned to a customer.",
         source=_reference(
             "customers",
@@ -362,7 +362,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="customer_active",
-        label="Active customer",
+        label="Cliente ativo",
         description="Whether the customer account is active.",
         source=_reference(
             "customers",
@@ -377,7 +377,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="region",
-        label="Region",
+        label="Região",
         description="Brazilian sales region attributed to the record.",
         source=_reference(
             "regions",
@@ -392,7 +392,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="region_code",
-        label="Region code",
+        label="Código da região",
         description="Stable business code for a sales region.",
         source=_reference(
             "regions",
@@ -406,7 +406,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="category",
-        label="Product category",
+        label="Categoria do produto",
         description="Commercial category assigned to a product.",
         source=_reference(
             "categories",
@@ -422,7 +422,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="product",
-        label="Product",
+        label="Produto",
         description="Product display name.",
         source=_reference(
             "products",
@@ -436,7 +436,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="product_sku",
-        label="Product SKU",
+        label="SKU do produto",
         description="Stable stock keeping unit of a product.",
         source=_reference(
             "products",
@@ -451,7 +451,7 @@ SEMANTIC_DIMENSIONS = (
     ),
     SemanticDimension(
         name="target_month",
-        label="Target month",
+        label="Mês da meta",
         description="Calendar month associated with a sales target.",
         source=_reference(
             "sales_targets",
@@ -473,7 +473,7 @@ SEMANTIC_DIMENSIONS = (
 SEMANTIC_METRICS = (
     SemanticMetric(
         name="order_count",
-        label="Order count",
+        label="Número de pedidos",
         description="Distinct number of orders.",
         aggregation="count_distinct",
         source=_reference(
@@ -489,7 +489,7 @@ SEMANTIC_METRICS = (
     ),
     SemanticMetric(
         name="customer_count",
-        label="Customer count",
+        label="Número de clientes",
         description="Distinct number of customers.",
         aggregation="count_distinct",
         source=_reference(
@@ -505,7 +505,7 @@ SEMANTIC_METRICS = (
     ),
     SemanticMetric(
         name="active_customer_count",
-        label="Active customer count",
+        label="Clientes ativos",
         description="Distinct number of active customers.",
         aggregation="count_distinct",
         source=_reference(
@@ -530,7 +530,7 @@ SEMANTIC_METRICS = (
     ),
     SemanticMetric(
         name="product_count",
-        label="Product count",
+        label="Número de produtos",
         description="Distinct number of products.",
         aggregation="count_distinct",
         source=_reference(
@@ -546,7 +546,7 @@ SEMANTIC_METRICS = (
     ),
     SemanticMetric(
         name="units_sold",
-        label="Units sold",
+        label="Unidades vendidas",
         description="Total quantity of product units in order items.",
         aggregation="sum",
         source=_reference(
@@ -564,7 +564,7 @@ SEMANTIC_METRICS = (
     ),
     SemanticMetric(
         name="approved_revenue",
-        label="Approved revenue",
+        label="Receita aprovada",
         description="Total BRL amount of approved payments.",
         aggregation="sum",
         source=_reference(
@@ -596,7 +596,7 @@ SEMANTIC_METRICS = (
     ),
     SemanticMetric(
         name="average_approved_order_value",
-        label="Average approved order value",
+        label="Valor médio do pedido aprovado",
         description="Average BRL amount of approved payments.",
         aggregation="average",
         source=_reference(
@@ -622,7 +622,7 @@ SEMANTIC_METRICS = (
     ),
     SemanticMetric(
         name="revenue_target",
-        label="Revenue target",
+        label="Meta de receita",
         description="Total monthly revenue target in BRL.",
         aggregation="sum",
         source=_reference(
@@ -639,7 +639,7 @@ SEMANTIC_METRICS = (
     ),
     SemanticMetric(
         name="orders_target",
-        label="Orders target",
+        label="Meta de pedidos",
         description="Total monthly target number of orders.",
         aggregation="sum",
         source=_reference(

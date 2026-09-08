@@ -56,7 +56,7 @@ def _error_response(
         },
         status.HTTP_422_UNPROCESSABLE_CONTENT: {
             "model": GroundingApiErrorResponse,
-            "description": ("The question is invalid or unsupported."),
+            "description": ("A pergunta é inválida ou não suportada."),
         },
         status.HTTP_503_SERVICE_UNAVAILABLE: {
             "model": GroundingApiErrorResponse,
@@ -77,7 +77,7 @@ def create_grounding_context(
 
     if service_value is None:
         return _error_response(
-            "Grounding context is unavailable",
+            "Contexto de ancoragem indisponível",
             status_code=(status.HTTP_503_SERVICE_UNAVAILABLE),
         )
 
@@ -90,12 +90,12 @@ def create_grounding_context(
         context = service.build(payload.question)
     except QuestionGroundingError:
         return _error_response(
-            "Question is invalid",
+            "Pergunta inválida",
             status_code=(status.HTTP_422_UNPROCESSABLE_CONTENT),
         )
     except Exception:
         return _error_response(
-            "Grounding context is unavailable",
+            "Contexto de ancoragem indisponível",
             status_code=(status.HTTP_503_SERVICE_UNAVAILABLE),
         )
 

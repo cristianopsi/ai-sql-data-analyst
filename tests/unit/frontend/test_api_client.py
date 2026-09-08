@@ -146,12 +146,12 @@ def test_generate_presentation_posts_only_the_question() -> None:
         (
             422,
             PresentationRequestRejectedError,
-            "Presentation request is invalid",
+            "Requisição de apresentação inválida",
         ),
         (
             503,
             PresentationServiceUnavailableError,
-            "Presentation service is unavailable",
+            "Serviço de apresentação indisponível",
         ),
     ],
 )
@@ -293,7 +293,7 @@ def test_invalid_question_is_rejected_before_transport() -> None:
 
     with pytest.raises(
         PresentationRequestRejectedError,
-        match="Presentation request is invalid",
+        match="Requisição de apresentação inválida",
     ):
         generate_presentation(
             api_base_url="http://backend.test",

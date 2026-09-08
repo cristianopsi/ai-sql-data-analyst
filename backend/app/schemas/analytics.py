@@ -481,9 +481,9 @@ class DeterministicAnalyticsResult(BaseModel):
 
 
 type AnalyticsApiErrorDetail = Literal[
-    "Question is invalid",
-    "Analytics could not be produced safely",
-    "Analytics service is unavailable",
+    "Pergunta inválida",
+    "Não foi possível gerar a análise com segurança",
+    "Serviço de análise indisponível",
 ]
 
 

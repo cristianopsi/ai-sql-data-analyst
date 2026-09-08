@@ -204,7 +204,7 @@ def test_invalid_question_returns_sanitized_422() -> None:
         )
 
         assert response.status_code == 422
-        assert response.json() == {"detail": "Question is invalid"}
+        assert response.json() == {"detail": "Pergunta inválida"}
         assert provider.generation_count == 0
 
 

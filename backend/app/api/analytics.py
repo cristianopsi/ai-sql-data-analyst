@@ -90,7 +90,7 @@ class SanitizedAnalyticsRoute(APIRoute):
                 return await original_handler(request)
             except RequestValidationError:
                 return _error_response(
-                    "Question is invalid",
+                    "Pergunta inválida",
                     status.HTTP_422_UNPROCESSABLE_CONTENT,
                 )
 
@@ -177,7 +177,7 @@ async def analyze_question(
         or database_ready is not True
     ):
         return _error_response(
-            "Analytics service is unavailable",
+            "Serviço de análise indisponível",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
@@ -207,7 +207,7 @@ async def analyze_question(
         QuestionGroundingError,
     ):
         return _error_response(
-            "Question is invalid",
+            "Pergunta inválida",
             status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except (
@@ -216,7 +216,7 @@ async def analyze_question(
         TextToSQLResponseError,
     ):
         return _error_response(
-            "Analytics could not be produced safely",
+            "Não foi possível gerar a análise com segurança",
             status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except (
@@ -225,7 +225,7 @@ async def analyze_question(
         QueryExecutionSecurityError,
     ):
         return _error_response(
-            "Analytics could not be produced safely",
+            "Não foi possível gerar a análise com segurança",
             status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except (
@@ -233,12 +233,12 @@ async def analyze_question(
         TextToSQLUnavailableError,
     ):
         return _error_response(
-            "Analytics service is unavailable",
+            "Serviço de análise indisponível",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     except Exception:
         return _error_response(
-            "Analytics service is unavailable",
+            "Serviço de análise indisponível",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 

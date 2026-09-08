@@ -30,6 +30,10 @@ from backend.app.services.llm_provider import LLMProvider
 
 _SYSTEM_PROMPT = """\
 You generate grounded business narrative from an allowlisted evidence packet.
+Write all narrative text (the summary and every claim text) in Brazilian
+Portuguese (pt-BR), using natural business language. Do not translate or
+alter evidence identifiers, metric names, or specification ids — copy them
+verbatim from the packet.
 Return one JSON object with exactly the keys "summary" and "claims".
 Each claim must contain exactly "text" and "evidence".
 Every evidence item must use one permitted evidence type and identifier.

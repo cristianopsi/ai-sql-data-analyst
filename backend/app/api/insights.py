@@ -55,9 +55,9 @@ NO_STORE_HEADERS = {
     "Cache-Control": "no-store",
 }
 
-INVALID_QUESTION_DETAIL = "Question is invalid"
-CONTROLLED_FAILURE_DETAIL = "Insight could not be produced safely"
-UNAVAILABLE_DETAIL = "Insight service is unavailable"
+INVALID_QUESTION_DETAIL = "Pergunta inválida"
+CONTROLLED_FAILURE_DETAIL = "Não foi possível gerar o insight com segurança"
+UNAVAILABLE_DETAIL = "Serviço de insights indisponível"
 
 
 def _error_response(

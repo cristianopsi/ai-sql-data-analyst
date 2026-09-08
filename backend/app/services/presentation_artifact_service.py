@@ -291,7 +291,7 @@ def _add_title_slide(
     )
     _add_text_box(
         slide,
-        f"Artifact {artifact_id} · Source rows {source_row_count}",
+        f"Artefato {artifact_id} · Linhas de origem {source_row_count}",
         left=1.5,
         top=5.65,
         width=10.3,
@@ -321,12 +321,12 @@ def _add_kpi_slide(
         alignment=PP_ALIGN.CENTER,
     )
     details = (
-        ("Aggregation", str(specification.aggregation)),
-        ("Count", str(specification.value_count)),
+        ("Agregação", str(specification.aggregation)),
+        ("Quantidade", str(specification.value_count)),
         ("Total", _format_decimal(specification.total, specification.unit)),
-        ("Average", _format_decimal(specification.average, specification.unit)),
-        ("Minimum", _format_decimal(specification.minimum, specification.unit)),
-        ("Maximum", _format_decimal(specification.maximum, specification.unit)),
+        ("Média", _format_decimal(specification.average, specification.unit)),
+        ("Mínimo", _format_decimal(specification.minimum, specification.unit)),
+        ("Máximo", _format_decimal(specification.maximum, specification.unit)),
     )
 
     for index, (label, value) in enumerate(details):
@@ -392,7 +392,42 @@ def _add_table_slides(
             Inches(5.2),
         )
         table = graphic_frame.table
-        headings = ("Position", specification.dimension_name, "Value", "Share")
+        _PT_HEADINGS = {
+            "order_status": "Status do pedido",
+            "sales_channel": "Canal de venda",
+            "category": "Categoria do produto",
+            "region": "Região",
+            "payment_method": "Meio de pagamento",
+            "payment_status": "Status do pagamento",
+            "customer_segment": "Segmento do cliente",
+            "order_date": "Data do pedido",
+            "payment_date": "Data do pagamento",
+            "product": "Produto",
+            "product_sku": "SKU do produto",
+            "customer_active": "Cliente ativo",
+            "region_code": "Código da região",
+            "target_month": "Mês da meta",
+            "Order status": "Status do pedido",
+            "Sales channel": "Canal de venda",
+            "Product category": "Categoria do produto",
+            "Region": "Região",
+            "Payment method": "Meio de pagamento",
+            "Payment status": "Status do pagamento",
+            "Customer segment": "Segmento do cliente",
+            "Order date": "Data do pedido",
+            "Payment date": "Data do pagamento",
+            "Product": "Produto",
+            "Product SKU": "SKU do produto",
+            "Active customer": "Cliente ativo",
+            "Region code": "Código da região",
+            "Target month": "Mês da meta",
+        }
+        headings = (
+            "Posição",
+            _PT_HEADINGS.get(specification.dimension_name, specification.dimension_name),
+            "Valor",
+            "Participação",
+        )
 
         for column, heading in enumerate(headings):
             cell = table.cell(0, column)

@@ -83,7 +83,7 @@ class SanitizedQueryExecutionRoute(APIRoute):
                 return await original_handler(request)
             except RequestValidationError:
                 return _error_response(
-                    "Question is invalid",
+                    "Pergunta inválida",
                     status.HTTP_422_UNPROCESSABLE_CONTENT,
                 )
 
@@ -147,7 +147,7 @@ async def execute_query(
 
     if pipeline_value is None or executor_value is None or database_ready is not True:
         return _error_response(
-            "Query execution is unavailable",
+            "Execução da consulta indisponível",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 
@@ -172,7 +172,7 @@ async def execute_query(
         QuestionGroundingError,
     ):
         return _error_response(
-            "Question is invalid",
+            "Pergunta inválida",
             status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except (
@@ -181,7 +181,7 @@ async def execute_query(
         TextToSQLResponseError,
     ):
         return _error_response(
-            "Query could not be generated safely",
+            "Não foi possível gerar a consulta com segurança",
             status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except (
@@ -189,7 +189,7 @@ async def execute_query(
         QueryExecutionSecurityError,
     ):
         return _error_response(
-            "Query could not be executed safely",
+            "Não foi possível executar a consulta com segurança",
             status.HTTP_422_UNPROCESSABLE_CONTENT,
         )
     except (
@@ -197,12 +197,12 @@ async def execute_query(
         TextToSQLUnavailableError,
     ):
         return _error_response(
-            "Query execution is unavailable",
+            "Execução da consulta indisponível",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
     except Exception:
         return _error_response(
-            "Query execution is unavailable",
+            "Execução da consulta indisponível",
             status.HTTP_503_SERVICE_UNAVAILABLE,
         )
 

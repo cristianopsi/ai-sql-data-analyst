@@ -232,7 +232,7 @@ def test_invalid_payload_is_sanitized_before_service(
         )
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "Presentation request is invalid"}
+    assert response.json() == {"detail": "Requisição de apresentação inválida"}
     assert response.headers["cache-control"] == "no-store"
     service.generate.assert_not_called()
 
@@ -249,7 +249,7 @@ def test_unavailable_managed_service_returns_sanitized_503() -> None:
         )
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Presentation service is unavailable"}
+    assert response.json() == {"detail": "Serviço de apresentação indisponível"}
     assert response.headers["cache-control"] == "no-store"
 
 
@@ -258,11 +258,11 @@ def test_unavailable_managed_service_returns_sanitized_503() -> None:
     [
         (
             QuestionGroundingError("invalid question"),
-            "Presentation request is invalid",
+            "Requisição de apresentação inválida",
         ),
         (
             PresentationServiceError("controlled failure"),
-            "Presentation could not be produced safely",
+            "Não foi possível gerar a apresentação com segurança",
         ),
     ],
 )
@@ -297,7 +297,7 @@ def test_unavailable_dependency_error_returns_503() -> None:
         )
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Presentation service is unavailable"}
+    assert response.json() == {"detail": "Serviço de apresentação indisponível"}
     assert response.headers["cache-control"] == "no-store"
 
 
@@ -313,7 +313,7 @@ def test_unexpected_error_is_sanitized() -> None:
         )
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Presentation service is unavailable"}
+    assert response.json() == {"detail": "Serviço de apresentação indisponível"}
     assert "private failure" not in response.text
     assert response.headers["cache-control"] == "no-store"
 
@@ -389,7 +389,7 @@ def test_export_rejects_client_artifact_controls(
         )
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "Presentation request is invalid"}
+    assert response.json() == {"detail": "Requisição de apresentação inválida"}
     assert response.headers["cache-control"] == "no-store"
     service.generate.assert_not_called()
 
@@ -406,7 +406,7 @@ def test_export_fails_closed_without_artifact_service() -> None:
         )
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Presentation service is unavailable"}
+    assert response.json() == {"detail": "Serviço de apresentação indisponível"}
     assert response.headers["cache-control"] == "no-store"
     service.generate.assert_not_called()
 
@@ -427,7 +427,7 @@ def test_export_artifact_failure_is_sanitized() -> None:
         )
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "Presentation could not be produced safely"}
+    assert response.json() == {"detail": "Não foi possível gerar a apresentação com segurança"}
     assert "private artifact failure" not in response.text
     assert response.headers["cache-control"] == "no-store"
     service.generate.assert_called_once_with("Show approved revenue")
@@ -448,7 +448,7 @@ def test_export_unexpected_artifact_failure_is_sanitized() -> None:
         )
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Presentation service is unavailable"}
+    assert response.json() == {"detail": "Serviço de apresentação indisponível"}
     assert "private runtime failure" not in response.text
     assert response.headers["cache-control"] == "no-store"
     service.generate.assert_called_once_with("Show approved revenue")
@@ -469,7 +469,7 @@ def test_export_unexpected_pipeline_failure_is_sanitized() -> None:
         )
 
     assert response.status_code == 503
-    assert response.json() == {"detail": "Presentation service is unavailable"}
+    assert response.json() == {"detail": "Serviço de apresentação indisponível"}
     assert "private pipeline failure" not in response.text
     assert response.headers["cache-control"] == "no-store"
     service.generate.assert_called_once_with("Show approved revenue")

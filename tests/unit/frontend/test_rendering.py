@@ -343,7 +343,7 @@ def test_bar_figure_preserves_order_and_exact_hover_values() -> None:
         "40,00%",
     ]
     assert figure.layout.xaxis.title.text == "region"
-    assert figure.layout.yaxis.title.text == "BRL"
+    assert figure.layout.yaxis.title.text == "R$"
 
 
 def test_line_figure_preserves_temporal_order_and_changes() -> None:
@@ -379,9 +379,9 @@ def test_render_kpi_uses_metric_and_bounded_caption(
     caption.assert_called_once()
     rendered_caption = caption.call_args.args[0]
     assert "Values: 2" in rendered_caption
-    assert "Average: R$ 617,28" in rendered_caption
-    assert "Minimum: R$ 500,00" in rendered_caption
-    assert "Maximum: R$ 734,56" in rendered_caption
+    assert "Média: R$ 617,28" in rendered_caption
+    assert "Mínimo: R$ 500,00" in rendered_caption
+    assert "Máximo: R$ 734,56" in rendered_caption
 
 
 def test_render_presentation_uses_only_safe_streamlit_elements(
@@ -438,7 +438,7 @@ def test_render_presentation_uses_only_safe_streamlit_elements(
         "width": "stretch",
         "hide_index": True,
     }
-    expander.assert_called_once_with("Validated SQL")
+    expander.assert_called_once_with("SQL validado")
     code.assert_called_once_with(
         result.query.validated_sql,
         language="sql",

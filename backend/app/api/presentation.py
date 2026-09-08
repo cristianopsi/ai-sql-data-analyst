@@ -46,9 +46,9 @@ from backend.app.services.text_to_sql import (
 )
 from backend.app.services.visualization_engine import VisualizationEngineError
 
-INVALID_REQUEST_DETAIL = "Presentation request is invalid"
-CONTROLLED_FAILURE_DETAIL = "Presentation could not be produced safely"
-UNAVAILABLE_DETAIL = "Presentation service is unavailable"
+INVALID_REQUEST_DETAIL = "Requisição de apresentação inválida"
+CONTROLLED_FAILURE_DETAIL = "Não foi possível gerar a apresentação com segurança"
+UNAVAILABLE_DETAIL = "Serviço de apresentação indisponível"
 NO_STORE_HEADERS = {"Cache-Control": "no-store"}
 
 

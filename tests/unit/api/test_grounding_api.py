@@ -119,7 +119,7 @@ def test_invalid_question_is_sanitized(
     )
 
     assert response.status_code == 422
-    assert response.json() == {"detail": "Question is invalid"}
+    assert response.json() == {"detail": "Pergunta inválida"}
     stripped_question = question.strip()
 
     if stripped_question:
@@ -137,7 +137,7 @@ def test_missing_service_returns_503() -> None:
         )
 
     assert response.status_code == 503
-    assert response.json() == {"detail": ("Grounding context is unavailable")}
+    assert response.json() == {"detail": ("Contexto de ancoragem indisponível")}
 
 
 def test_service_failure_is_sanitized() -> None:
@@ -160,7 +160,7 @@ def test_service_failure_is_sanitized() -> None:
         )
 
     assert response.status_code == 503
-    assert response.json() == {"detail": ("Grounding context is unavailable")}
+    assert response.json() == {"detail": ("Contexto de ancoragem indisponível")}
     assert "internal sensitive failure" not in response.text
 
 

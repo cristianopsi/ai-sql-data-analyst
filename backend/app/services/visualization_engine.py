@@ -31,9 +31,39 @@ class VisualizationInputError(VisualizationEngineError):
     """Raised when analytics cannot produce safe specifications."""
 
 
+_DISPLAY_LABELS_PT_BR = {
+    "approved_revenue": "Receita aprovada",
+    "order_count": "Número de pedidos",
+    "customer_count": "Número de clientes",
+    "active_customer_count": "Clientes ativos",
+    "product_count": "Número de produtos",
+    "units_sold": "Unidades vendidas",
+    "average_approved_order_value": "Valor médio do pedido aprovado",
+    "revenue_target": "Meta de receita",
+    "orders_target": "Meta de pedidos",
+    "order_date": "Data do pedido",
+    "order_status": "Status do pedido",
+    "sales_channel": "Canal de venda",
+    "payment_date": "Data do pagamento",
+    "payment_status": "Status do pagamento",
+    "payment_method": "Meio de pagamento",
+    "customer_segment": "Segmento do cliente",
+    "customer_active": "Cliente ativo",
+    "region": "Região",
+    "region_code": "Código da região",
+    "category": "Categoria do produto",
+    "product": "Produto",
+    "product_sku": "SKU do produto",
+    "target_month": "Mês da meta",
+}
+
+
 def _display_name(
     identifier: str,
 ) -> str:
+    mapped = _DISPLAY_LABELS_PT_BR.get(identifier)
+    if mapped is not None:
+        return mapped
     words = identifier.replace("_", " ").split()
 
     if not words:
@@ -117,7 +147,7 @@ class DeterministicVisualizationEngine:
                         ranking.dimension_name,
                     ),
                     title=(
-                        f"{_display_name(summary.metric_name)} by "
+                        f"{_display_name(summary.metric_name)} por "
                         f"{_display_name(ranking.dimension_name)}"
                     ),
                     metric_name=summary.metric_name,
@@ -144,7 +174,7 @@ class DeterministicVisualizationEngine:
                         ranking.dimension_name,
                     ),
                     title=(
-                        f"{_display_name(summary.metric_name)} by "
+                        f"{_display_name(summary.metric_name)} por "
                         f"{_display_name(ranking.dimension_name)}"
                     ),
                     metric_name=summary.metric_name,
@@ -179,7 +209,7 @@ class DeterministicVisualizationEngine:
                         series.dimension_name,
                     ),
                     title=(
-                        f"{_display_name(summary.metric_name)} by "
+                        f"{_display_name(summary.metric_name)} por "
                         f"{_display_name(series.dimension_name)}"
                     ),
                     metric_name=summary.metric_name,

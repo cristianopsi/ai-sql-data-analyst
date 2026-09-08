@@ -387,12 +387,12 @@ def test_engine_maps_analytics_to_kpi_table_bar_and_line() -> None:
     assert isinstance(bar, BarVisualizationSpec)
     assert isinstance(line, LineVisualizationSpec)
 
-    assert kpi.title == "Approved Revenue"
+    assert kpi.title == "Receita aprovada"
     assert kpi.metric_name == "approved_revenue"
     assert kpi.unit == "brl"
     assert kpi.value == Decimal("600.0000")
 
-    assert table.title == "Approved Revenue by Region"
+    assert table.title == "Receita aprovada por Região"
     assert table.metric_name == "approved_revenue"
     assert table.dimension_name == "region"
     assert tuple(row.label for row in table.rows) == (
@@ -401,7 +401,7 @@ def test_engine_maps_analytics_to_kpi_table_bar_and_line() -> None:
         "North",
     )
 
-    assert bar.title == "Approved Revenue by Region"
+    assert bar.title == "Receita aprovada por Região"
     assert bar.metric_name == "approved_revenue"
     assert bar.dimension_name == "region"
     assert bar.unit == "brl"
@@ -411,7 +411,7 @@ def test_engine_maps_analytics_to_kpi_table_bar_and_line() -> None:
         "North",
     )
 
-    assert line.title == "Approved Revenue by Order Month"
+    assert line.title == "Receita aprovada por Order Month"
     assert line.metric_name == "approved_revenue"
     assert line.dimension_name == "order_month"
     assert line.unit == "brl"

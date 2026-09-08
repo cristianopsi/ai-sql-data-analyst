@@ -47,10 +47,10 @@ class QueryResultColumnMetadata(BaseModel):
 
 
 type QueryExecutionApiErrorDetail = Literal[
-    "Question is invalid",
-    "Query could not be generated safely",
-    "Query could not be executed safely",
-    "Query execution is unavailable",
+    "Pergunta inválida",
+    "Não foi possível gerar a consulta com segurança",
+    "Não foi possível executar a consulta com segurança",
+    "Execução da consulta indisponível",
 ]
 
 

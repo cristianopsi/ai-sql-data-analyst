@@ -110,10 +110,10 @@ def test_query_execution_request_is_strict() -> None:
     assert request.question == "Revenue by region"
 
     error = QueryExecutionApiErrorResponse(
-        detail="Query could not be executed safely",
+        detail="Não foi possível executar a consulta com segurança",
     )
 
-    assert error.detail == ("Query could not be executed safely")
+    assert error.detail == ("Não foi possível executar a consulta com segurança")
 
     invalid_payloads = (
         {
@@ -730,7 +730,7 @@ def test_query_executor_sanitizes_connection_failure() -> None:
 
     with pytest.raises(
         QueryExecutionUnavailableError,
-        match="execution is unavailable",
+        match="consulta indisponível",
     ) as captured:
         executor.execute(generation)
 
@@ -751,7 +751,7 @@ def test_query_executor_sanitizes_query_failure() -> None:
 
     with pytest.raises(
         QueryExecutionUnavailableError,
-        match="execution is unavailable",
+        match="consulta indisponível",
     ) as captured:
         executor.execute(generation)
 
@@ -1059,7 +1059,7 @@ def test_query_executor_sanitizes_timeout_setup_failure() -> None:
 
     with pytest.raises(
         QueryExecutionUnavailableError,
-        match="execution is unavailable",
+        match="consulta indisponível",
     ) as captured:
         executor.execute(generation)
 
