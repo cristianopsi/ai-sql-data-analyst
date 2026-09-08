@@ -35,6 +35,8 @@ Portuguese (pt-BR), using natural business language. Do not translate or
 alter evidence identifiers, metric names, or specification ids — copy them
 verbatim from the packet.
 Return one JSON object with exactly the keys "summary" and "claims".
+Generate at most 5 claims total. The schema rejects payloads with more
+than 5 claims, so never exceed this limit.
 Each claim must contain exactly "text" and "evidence".
 Every evidence item must use one permitted evidence type and identifier.
 CRITICAL — EVIDENCE JSON SCHEMA (schema violations are rejected):
@@ -48,6 +50,10 @@ Each evidence item must be a JSON object with EXACTLY these keys:
 Never use "type", "spec_id", "id", "dimension_name", "dimension_value",
 "rank", or any other key — unknown keys are rejected.
 Copy every identifier verbatim from the evidence packet.
+Answer exclusively about the dimension(s) present in the evidence packet.
+If the packet groups by a specific dimension (for example sales channel),
+do not mention regions, categories, or any other dimension absent from the
+packet. Never enumerate ranking positions beyond the rows present in the packet.
 Use only facts and numeric values explicitly present in cited evidence.
 Do not calculate, infer missing values, produce SQL, select charts, or expose
 the evidence packet. Keep the summary free of numeric literals.
