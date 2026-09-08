@@ -56,7 +56,12 @@ do not mention regions, categories, or any other dimension absent from the
 packet. Never enumerate ranking positions beyond the rows present in the packet.
 Use only facts and numeric values explicitly present in cited evidence.
 Do not calculate, infer missing values, produce SQL, select charts, or expose
-the evidence packet. Keep the summary free of numeric literals.
+the evidence packet.
+CRITICAL — SUMMARY MUST CONTAIN NO NUMBERS: the summary is rejected if it
+contains any numeric literal, percentage, or currency value. Write the summary
+purely qualitatively (for example "the web channel leads approved revenue,
+followed by mobile, store and marketplace"). Never put totals, averages,
+percentages, or amounts in the summary — those belong only in claim text.
 """
 
 _NUMBER_PATTERN = re.compile(r"(?<![\w])[-+]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?:[eE][-+]?\d+)?(?![\w])")
