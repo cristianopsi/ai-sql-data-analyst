@@ -735,3 +735,374 @@ def test_engine_rejects_provider_identity_mismatch(
             _analytics_result(),
             _visualization_result(),
         )
+
+
+def _analytics_result_with_total(total: str) -> DeterministicAnalyticsResult:
+    total_decimal = Decimal(total)
+    summary = AnalyticsMetricSummary(
+        metric_name="approved_revenue",
+        unit="brl",
+        value_count=2,
+        total=total_decimal,
+        average=total_decimal / Decimal("2"),
+        minimum=total_decimal * Decimal("0.25"),
+        maximum=total_decimal,
+    )
+    return DeterministicAnalyticsResult.model_construct(
+        analytics_version="1",
+        analytics_status="analyzed",
+        deterministic=True,
+        calculation_scale=4,
+        execution_version="1",
+        semantic_version="1",
+        catalog_version="1",
+        source_row_count=2,
+        metric_summaries=(summary,),
+        rankings=(),
+        series=(),
+    )
+
+
+def _claim_response(text: str) -> str:
+    return json.dumps(
+        {
+            "summary": ("A receita aprovada está fundamentada nos dados."),
+            "claims": [
+                {
+                    "text": text,
+                    "evidence": [
+                        {
+                            "evidence_type": "metric_summary",
+                            "metric_name": "approved_revenue",
+                            "specification_id": None,
+                        }
+                    ],
+                }
+            ],
+        }
+    )
+
+
+def test_engine_accepts_ptbr_comma_decimal_with_rounding() -> None:
+    # pt-BR: vírgula decimal + arredondado p/ 2 casas. Fonte 300.009 -> 300.01.
+    engine = GroundedInsightEngine(
+        StubLLMProvider(_claim_response("A receita aprovada totaliza 300,01."))
+    )
+    result = engine.generate(
+        _analytics_result_with_total("300.009"),
+        _visualization_result(),
+    )
+    assert result.claims[0].text == "A receita aprovada totaliza 300,01."
+
+
+def test_engine_accepts_english_decimal_with_rounding() -> None:
+    # en-US: ponto decimal + arredondado p/ 2 casas. Fonte 300.009 -> 300.01.
+    engine = GroundedInsightEngine(
+        StubLLMProvider(_claim_response("A receita aprovada totaliza 300.01."))
+    )
+    result = engine.generate(
+        _analytics_result_with_total("300.009"),
+        _visualization_result(),
+    )
+    assert result.claims[0].text == "A receita aprovada totaliza 300.01."
+
+
+def test_engine_accepts_ptbr_thousands_separator() -> None:
+    # pt-BR: separador de milhar + vírgula decimal. 1.234,56 == 1234.56.
+    engine = GroundedInsightEngine(
+        StubLLMProvider(_claim_response("A receita aprovada totaliza 1.234,56."))
+    )
+    result = engine.generate(
+        _analytics_result_with_total("1234.56"),
+        _visualization_result(),
+    )
+    assert result.claims[0].text == "A receita aprovada totaliza 1.234,56."
+
+
+def test_engine_accepts_english_thousands_separator() -> None:
+    # en-US: separador de milhar + ponto decimal. 1,234.56 == 1234.56.
+    engine = GroundedInsightEngine(
+        StubLLMProvider(_claim_response("A receita aprovada totaliza 1,234.56."))
+    )
+    result = engine.generate(
+        _analytics_result_with_total("1234.56"),
+        _visualization_result(),
+    )
+    assert result.claims[0].text == "A receita aprovada totaliza 1,234.56."
+
+
+def test_engine_still_rejects_uncited_value_after_tolerance() -> None:
+    # Segurança preservada: número genuinamente não citado continua rejeitado.
+    engine = GroundedInsightEngine(
+        StubLLMProvider(_claim_response("A receita aprovada totaliza 999.99."))
+    )
+    with pytest.raises(
+        InsightProviderResponseError,
+        match="uncited numeric value",
+    ):
+        engine.generate(
+            _analytics_result_with_total("300.00"),
+            _visualization_result(),
+        )
+
+
+def test_engine_accepts_claim_mentioning_dimension_absent_from_packet() -> None:
+    """GAP DOCUMENTADO: o engine aceita um claim que cita uma dimensão
+    ausente do pacote de evidências.
+
+    O pacote agrupa por sales_channel (web, mobile, store, marketplace).
+    O claim abaixo menciona 'região'/'Sudeste' — dimensão que NÃO existe
+    no pacote. O grounding valida apenas (1) a referência resolve para
+    uma fonte real e (2) todo número do claim rastreia um valor da fonte.
+    Ele NÃO valida o vocabulário de dimensão da prosa livre do claim.
+
+    Este teste documenta o comportamento atual (aceita) para provar o
+    gap: se o engine passar a rejeitar dimensões ausentes, este teste
+    deve ser atualizado para esperar InsightProviderResponseError.
+    """
+    from backend.app.schemas.analytics import (
+        AnalyticsRanking,
+        AnalyticsRankingItem,
+    )
+
+    ranking = AnalyticsRanking.model_construct(
+        metric_name="approved_revenue",
+        dimension_name="sales_channel",
+        items=(
+            AnalyticsRankingItem.model_construct(
+                rank=1,
+                dimension_value="web",
+                value=Decimal("58651629.67"),
+                share_percent=Decimal("37.6809"),
+            ),
+            AnalyticsRankingItem.model_construct(
+                rank=2,
+                dimension_value="mobile",
+                value=Decimal("41795929.68"),
+                share_percent=Decimal("26.8519"),
+            ),
+            AnalyticsRankingItem.model_construct(
+                rank=3,
+                dimension_value="store",
+                value=Decimal("32392364.25"),
+                share_percent=Decimal("20.8106"),
+            ),
+            AnalyticsRankingItem.model_construct(
+                rank=4,
+                dimension_value="marketplace",
+                value=Decimal("22813522.13"),
+                share_percent=Decimal("14.6566"),
+            ),
+        ),
+    )
+    analytics = DeterministicAnalyticsResult.model_construct(
+        analytics_version="1",
+        analytics_status="analyzed",
+        deterministic=True,
+        calculation_scale=4,
+        execution_version="1",
+        semantic_version="1",
+        catalog_version="1",
+        source_row_count=4,
+        metric_summaries=(),
+        rankings=(ranking,),
+        series=(),
+    )
+    viz = DeterministicVisualizationResult.model_construct(
+        visualization_version="1",
+        visualization_status="specified",
+        deterministic=True,
+        analytics_version="1",
+        execution_version="1",
+        semantic_version="1",
+        catalog_version="1",
+        source_row_count=4,
+        specifications=(),
+    )
+
+    # Claim cita 'região'/'Sudeste' — dimensão AUSENTE do pacote
+    # (que agrupa por sales_channel). O número 37,68% rastreia a fonte
+    # (share_percent=37.6809) e a referência resolve para o ranking.
+    payload = json.loads(_valid_response())
+    payload["claims"][0]["text"] = (
+        "A receita por região é liderada pelo Sudeste, com participação de 37,68%."
+    )
+    payload["claims"][0]["evidence"] = [
+        {
+            "evidence_type": "ranking",
+            "metric_name": "approved_revenue",
+            "specification_id": None,
+        }
+    ]
+    engine = GroundedInsightEngine(StubLLMProvider(json.dumps(payload)))
+
+    # REGRESSÃO: o gate de dimensão agora rejeita a dimensão ausente.
+    with pytest.raises(
+        InsightProviderResponseError,
+        match="dimension absent from the evidence packet",
+    ):
+        engine.generate(analytics, viz)
+
+
+def _ranking_result(
+    dimension_name: str,
+    dimension_values: tuple[str, ...],
+) -> DeterministicAnalyticsResult:
+    from backend.app.schemas.analytics import (
+        AnalyticsRanking,
+        AnalyticsRankingItem,
+    )
+
+    items = tuple(
+        AnalyticsRankingItem.model_construct(
+            rank=index,
+            dimension_value=value,
+            value=Decimal("58651629.67"),
+            share_percent=Decimal("37.6809"),
+        )
+        for index, value in enumerate(dimension_values, start=1)
+    )
+    ranking = AnalyticsRanking.model_construct(
+        metric_name="approved_revenue",
+        dimension_name=dimension_name,
+        items=items,
+    )
+    return DeterministicAnalyticsResult.model_construct(
+        analytics_version="1",
+        analytics_status="analyzed",
+        deterministic=True,
+        calculation_scale=4,
+        execution_version="1",
+        semantic_version="1",
+        catalog_version="1",
+        source_row_count=len(dimension_values),
+        metric_summaries=(),
+        rankings=(ranking,),
+        series=(),
+    )
+
+
+def _empty_visualization_result(
+    source_row_count: int = 0,
+) -> DeterministicVisualizationResult:
+    return DeterministicVisualizationResult.model_construct(
+        visualization_version="1",
+        visualization_status="specified",
+        deterministic=True,
+        analytics_version="1",
+        execution_version="1",
+        semantic_version="1",
+        catalog_version="1",
+        source_row_count=source_row_count,
+        specifications=(),
+    )
+
+
+def test_engine_rejects_claim_mentioning_dimension_absent_from_packet() -> None:
+    """GATE: claim que cita dimensão ausente do pacote é rejeitado.
+
+    O ranking agrupa por sales_channel (web, mobile, store, marketplace).
+    O claim cita 'região'/'Sudeste' — dimensão que NÃO existe no pacote.
+    'região' -> canônica 'region' não casa com dimension_name
+    'sales_channel' -> rejeitado.
+    """
+    analytics = _ranking_result(
+        "sales_channel",
+        ("web", "mobile", "store", "marketplace"),
+    )
+    payload = json.loads(_valid_response())
+    payload["claims"][0]["text"] = (
+        "A receita por região é liderada pelo Sudeste, com participação de 37,68%."
+    )
+    payload["claims"][0]["evidence"] = [
+        {
+            "evidence_type": "ranking",
+            "metric_name": "approved_revenue",
+            "specification_id": None,
+        }
+    ]
+    engine = GroundedInsightEngine(StubLLMProvider(json.dumps(payload)))
+    with pytest.raises(
+        InsightProviderResponseError,
+        match="dimension absent from the evidence packet",
+    ):
+        engine.generate(analytics, _empty_visualization_result(source_row_count=4))
+
+
+def test_engine_accepts_claim_mentioning_supported_dimension() -> None:
+    """FALSO-POSITIVO EVITADO: 'canal' é a dimensão suportada.
+
+    'canal'/'channel' não estão no léxico de indicadores, então o claim
+    legítimo citando a dimensão real do pacote é aceito.
+    """
+    analytics = _ranking_result(
+        "sales_channel",
+        ("web", "mobile", "store", "marketplace"),
+    )
+    payload = json.loads(_valid_response())
+    payload["claims"][0]["text"] = (
+        "O canal web é o principal gerador de receita aprovada, com participação de 37,68%."
+    )
+    payload["claims"][0]["evidence"] = [
+        {
+            "evidence_type": "ranking",
+            "metric_name": "approved_revenue",
+            "specification_id": None,
+        }
+    ]
+    engine = GroundedInsightEngine(StubLLMProvider(json.dumps(payload)))
+    result = engine.generate(analytics, _empty_visualization_result(source_row_count=4))
+    assert result.claims[0].text == (
+        "O canal web é o principal gerador de receita aprovada, com participação de 37,68%."
+    )
+
+
+def test_engine_accepts_claim_mentioning_supported_category_dimension() -> None:
+    """FALSO-POSITIVO EVITADO: 'categoria' ancorada em 'product_category'.
+
+    O ranking agrupa por product_category. 'categoria' -> canônica
+    'category' casa com dimension_name 'product_category' via substring.
+    """
+    analytics = _ranking_result(
+        "product_category",
+        ("Eletrônicos", "Moda", "Casa"),
+    )
+    payload = json.loads(_valid_response())
+    payload["claims"][0]["text"] = (
+        "A receita por categoria de produto é liderada por Eletrônicos, com participação de 37,68%."
+    )
+    payload["claims"][0]["evidence"] = [
+        {
+            "evidence_type": "ranking",
+            "metric_name": "approved_revenue",
+            "specification_id": None,
+        }
+    ]
+    engine = GroundedInsightEngine(StubLLMProvider(json.dumps(payload)))
+    result = engine.generate(analytics, _empty_visualization_result(source_row_count=3))
+    assert result.claims[0].text == (
+        "A receita por categoria de produto é liderada por Eletrônicos, com participação de 37,68%."
+    )
+
+
+def test_engine_accepts_claim_without_dimension_mention() -> None:
+    """FALSO-POSITIVO EVITADO: claim sem palavra de dimensão é aceito."""
+    payload = json.loads(_valid_response())
+    payload["claims"][0]["text"] = (
+        "A receita aprovada totaliza 300.00, conforme indicador principal."
+    )
+    payload["claims"][0]["evidence"] = [
+        {
+            "evidence_type": "metric_summary",
+            "metric_name": "approved_revenue",
+            "specification_id": None,
+        }
+    ]
+    engine = GroundedInsightEngine(StubLLMProvider(json.dumps(payload)))
+    result = engine.generate(
+        _analytics_result(),
+        _visualization_result(),
+    )
+    assert result.claims[0].text == (
+        "A receita aprovada totaliza 300.00, conforme indicador principal."
+    )

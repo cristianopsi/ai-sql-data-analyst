@@ -10,7 +10,11 @@ from pydantic import BaseModel, ValidationError
 from backend.app.core.observability import (
     get_audit_logger,
 )
-from backend.app.schemas.analytics import DeterministicAnalyticsResult
+from backend.app.schemas.analytics import (
+    AnalyticsRanking,
+    AnalyticsSeries,
+    DeterministicAnalyticsResult,
+)
 from backend.app.schemas.insights import (
     GroundedInsightClaim,
     GroundedInsightResult,
@@ -64,7 +68,93 @@ followed by mobile, store and marketplace"). Never put totals, averages,
 percentages, or amounts in the summary — those belong only in claim text.
 """
 
-_NUMBER_PATTERN = re.compile(r"(?<![\w])[-+]?(?:\d+(?:[.,]\d+)?|[.,]\d+)(?:[eE][-+]?\d+)?(?![\w])")
+_NUMBER_PATTERN = re.compile(
+    r"(?<![\w])[-+]?(?:\d{1,3}(?:[.,]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)?|[.,]\d+)(?:[eE][-+]?\d+)?(?![\w])"
+)
+
+
+def _parse_number_token(token: str) -> Decimal | None:
+    """Parse a numeric token agnostically across pt-BR and en-US locales.
+
+    Handles thousands separators (1.234,56 / 1,234.56) and decimal
+    separators (comma or dot). Returns None when the token is not a
+    finite number.
+    """
+    raw = token.strip()
+    if not raw:
+        return None
+    try:
+        if "," in raw and "." in raw:
+            # Mixed separators: the LAST separator is the decimal one.
+            if raw.rfind(",") > raw.rfind("."):
+                normalized = raw.replace(".", "").replace(",", ".")
+            else:
+                normalized = raw.replace(",", "")
+        elif "," in raw:
+            # Only a comma: pt-BR style (1.234,56 -> 1234.56) or a
+            # plain decimal (37,68 -> 37.68). Treat as decimal.
+            normalized = raw.replace(".", "").replace(",", ".")
+        else:
+            # Only a dot: en-US style. Keep as-is (37.6809 -> 37.6809).
+            normalized = raw
+        decimal_value = Decimal(normalized)
+    except InvalidOperation:
+        return None
+    if not decimal_value.is_finite():
+        return None
+    return decimal_value
+
+
+def _number_values(value: object) -> set[Decimal]:
+    numbers: set[Decimal] = set()
+    if isinstance(value, bool) or value is None:
+        return numbers
+    if isinstance(value, Decimal):
+        if value.is_finite():
+            numbers.add(value)
+        return numbers
+    if isinstance(value, int | float):
+        try:
+            decimal_value = Decimal(str(value))
+        except InvalidOperation:
+            return numbers
+        if decimal_value.is_finite():
+            numbers.add(decimal_value)
+        return numbers
+    if isinstance(value, str):
+        for token in _NUMBER_PATTERN.findall(value):
+            parsed = _parse_number_token(token)
+            if parsed is not None:
+                numbers.add(parsed)
+        return numbers
+    if isinstance(value, BaseModel):
+        return _number_values(value.model_dump(mode="python"))
+    if isinstance(value, dict):
+        for item in value.values():
+            numbers.update(_number_values(item))
+        return numbers
+    if isinstance(value, list | tuple):
+        for item in value:
+            numbers.update(_number_values(item))
+    return numbers
+
+
+def _rounded(value: Decimal, places: int = 2) -> Decimal:
+    """Round a Decimal to a fixed precision for tolerance comparison."""
+    quantum = Decimal(1).scaleb(-places)
+    return value.quantize(quantum)
+
+
+def _numbers_match(claimed: set[Decimal], allowed: set[Decimal], places: int = 2) -> bool:
+    """Return True when every claimed number matches an allowed value
+    within rounding tolerance. Preserves grounding: a number must still
+    trace to a real evidence value, but tolerates human formatting
+    (rounded percentages, currency amounts, locale separators).
+    """
+    allowed_rounded = {_rounded(v, places) for v in allowed}
+    return all(_rounded(v, places) in allowed_rounded for v in claimed)
+
+
 _FORBIDDEN_OUTPUT_PATTERNS = (
     re.compile(r"\b(?:select|insert|update|delete|drop|alter)\b", re.IGNORECASE),
     re.compile(r"\bcreate\s+table\b", re.IGNORECASE),
@@ -175,6 +265,142 @@ def _evidence_sources(
         sources[("visualization", specification.spec_id)] = specification
 
     return sources
+
+
+# ============================================================
+# Gate determinístico de dimensão
+# ============================================================
+# Dimensões são prosa livre, não tokens parseáveis como números. Para
+# validar deterministicamente, usamos um léxico curado de palavras que
+# indicam referência a uma dimensão/categoria, mapeadas para a dimensão
+# canônica em inglês. O gate rejeita um claim quando ele contém uma
+# dessas palavras cuja dimensão canônica NÃO está ancorada na evidência
+# citada.
+#
+# Ancoragem: a palavra é ancorada quando sua dimensão canônica casa com
+# o dimension_name da fonte citada (ranking/series), com tolerância de
+# substring (ex.: "category" casa com dimension_name "product_category").
+# Fontes sem dimensão (metric_summary/visualization): qualquer palavra
+# do léxico é não-ancorada e rejeita o claim.
+#
+# Palavras temporais (mês, ano, dia, semana...) foram EXCLUÍDAS do léxico
+# para evitar falso-positivo em claims legítimos de recorte temporal.
+# "canal"/"channel" também foram excluídos por serem a dimensão suportada
+# no fluxo principal (sales_channel).
+_DIMENSION_INDICATORS: dict[str, str] = {
+    # Português -> dimensão canônica (inglês)
+    "região": "region",
+    "regioes": "region",
+    "estado": "state",
+    "estados": "state",
+    "cidade": "city",
+    "cidades": "city",
+    "país": "country",
+    "paises": "country",
+    "categoria": "category",
+    "categorias": "category",
+    "produto": "product",
+    "produtos": "product",
+    "segmento": "segment",
+    "segmentos": "segment",
+    "marca": "brand",
+    "marcas": "brand",
+    "cliente": "customer",
+    "clientes": "customer",
+    "vendedor": "seller",
+    "vendedores": "seller",
+    "tipo": "type",
+    "tipos": "type",
+    "grupo": "group",
+    "grupos": "group",
+    "bairro": "district",
+    "bairros": "district",
+    "unidade": "unit",
+    "unidades": "unit",
+    # Inglês -> dimensão canônica (identidade)
+    "region": "region",
+    "regions": "region",
+    "state": "state",
+    "states": "state",
+    "city": "city",
+    "cities": "city",
+    "country": "country",
+    "countries": "country",
+    "category": "category",
+    "categories": "category",
+    "product": "product",
+    "products": "product",
+    "segment": "segment",
+    "segments": "segment",
+    "brand": "brand",
+    "brands": "brand",
+    "customer": "customer",
+    "customers": "customer",
+    "seller": "seller",
+    "sellers": "seller",
+    "type": "type",
+    "types": "type",
+    "group": "group",
+    "groups": "group",
+    "district": "district",
+    "districts": "district",
+    "unit": "unit",
+    "units": "unit",
+}
+
+
+def _claim_dimension_indicators(text: str) -> set[str]:
+    """Return the canonical dimension names referenced by indicator words
+    found in the claim text (casefolded, punctuation stripped)."""
+    normalized = "".join(
+        char if char.isalnum() or char.isspace() else " " for char in text.casefold()
+    )
+    tokens = normalized.split()
+    return {
+        canonical for token in tokens if (canonical := _DIMENSION_INDICATORS.get(token)) is not None
+    }
+
+
+def _dimension_grounded(canonical: str, dimension_name: str | None) -> bool:
+    """Return True when a canonical dimension is grounded in the cited
+    source's dimension_name, with substring tolerance."""
+    if not dimension_name:
+        return False
+    source = dimension_name.casefold()
+    return canonical in source or source in canonical
+
+
+def _validate_claim_dimensions(
+    claim_text: str,
+    references: tuple[InsightEvidenceReference, ...],
+    sources: dict[tuple[str, str], BaseModel],
+) -> None:
+    """Reject a claim that references a dimension absent from every cited
+    evidence. Deterministic gate over a curated dimension lexicon.
+
+    A claim may cite multiple evidence references. A dimension indicator
+    is considered grounded when it matches the dimension_name of at least
+    one cited source. If no cited source grounds the dimension, the claim
+    is rejected."""
+    indicators = _claim_dimension_indicators(claim_text)
+    if not indicators:
+        return
+    grounded: set[str] = set()
+    for reference in references:
+        source = sources.get(_reference_key(reference))
+        if source is None:
+            continue  # unknown evidence is already rejected elsewhere
+        dimension_name: str | None = None
+        if isinstance(source, AnalyticsRanking | AnalyticsSeries):
+            dimension_name = source.dimension_name
+        grounded.update(
+            canonical for canonical in indicators if _dimension_grounded(canonical, dimension_name)
+        )
+    ungrounded = indicators - grounded
+    if ungrounded:
+        raise InsightProviderResponseError(
+            "Insight references a dimension absent from the evidence packet"
+        )
 
 
 def _reject_unsafe_output(text: str) -> None:
@@ -385,8 +611,13 @@ class GroundedInsightEngine:
 
             claimed_numbers = _number_values(proposed_claim.text)
 
-            if not claimed_numbers.issubset(allowed_numbers):
+            if not _numbers_match(claimed_numbers, allowed_numbers):
                 raise InsightProviderResponseError("Insight contains an uncited numeric value")
+            _validate_claim_dimensions(
+                proposed_claim.text,
+                proposed_claim.evidence,
+                sources,
+            )
 
             claims.append(
                 GroundedInsightClaim(
