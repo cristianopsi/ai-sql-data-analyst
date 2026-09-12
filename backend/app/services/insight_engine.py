@@ -174,57 +174,6 @@ class InsightProviderResponseError(InsightEngineError):
     """Raised when a provider response cannot be trusted."""
 
 
-def _number_values(value: object) -> set[Decimal]:
-    numbers: set[Decimal] = set()
-
-    if isinstance(value, bool) or value is None:
-        return numbers
-
-    if isinstance(value, Decimal):
-        if value.is_finite():
-            numbers.add(value)
-
-        return numbers
-
-    if isinstance(value, int | float):
-        try:
-            decimal_value = Decimal(str(value))
-        except InvalidOperation:
-            return numbers
-
-        if decimal_value.is_finite():
-            numbers.add(decimal_value)
-
-        return numbers
-
-    if isinstance(value, str):
-        for token in _NUMBER_PATTERN.findall(value):
-            try:
-                decimal_value = Decimal(token.replace(",", "."))
-            except InvalidOperation:
-                continue
-
-            if decimal_value.is_finite():
-                numbers.add(decimal_value)
-
-        return numbers
-
-    if isinstance(value, BaseModel):
-        return _number_values(value.model_dump(mode="python"))
-
-    if isinstance(value, dict):
-        for item in value.values():
-            numbers.update(_number_values(item))
-
-        return numbers
-
-    if isinstance(value, list | tuple):
-        for item in value:
-            numbers.update(_number_values(item))
-
-    return numbers
-
-
 def _reference_key(
     reference: InsightEvidenceReference,
 ) -> tuple[str, str]:
