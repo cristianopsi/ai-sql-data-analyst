@@ -62,7 +62,7 @@ jobs:
             --project=${{ vars.GCP_PROJECT_ID }} \
             --service-account=sa-runtime@${{ vars.GCP_PROJECT_ID }}.iam.gserviceaccount.com \
             --add-cloudsql-instances=${{ vars.CLOUD_SQL_INSTANCE }} \
-            --set-env-vars="\
+            --update-env-vars="\
               APP_ENV=production,\
               LLM_PROVIDER=deepseek,\
               LLM_MODEL=deepseek-v4-flash,\
@@ -72,7 +72,10 @@ jobs:
               CLOUD_SQL_APP_USER=postgres,\
               CLOUD_SQL_ANALYTICS_USER=analytics,\
               SECRET_MANAGER_ENABLED=true,\
-              AUTH_ENABLED=false,\
+              AUTH_ENABLED=true,\
+              OIDC_ISSUER=https://securetoken.google.com/ai-sql-data-analyst-prod,\
+              OIDC_AUDIENCE=ai-sql-data-analyst-prod,\
+              OIDC_JWKS_URL=https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com,\
               CORS_ALLOWED_ORIGINS=*" \
             --set-secrets="\
               LLM_API_KEY=llm-api-key:latest,\
